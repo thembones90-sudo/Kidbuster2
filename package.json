@@ -1,0 +1,16 @@
+{
+  "name": "kidbuster",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "KIDBUSTER — ESL teacher parent-feedback generator. Static frontend + a single secure serverless proxy function.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node tests/run-all.cjs"
+  },
+  "devDependencies": {
+    "puppeteer": "^23.0.0"
+  }
+}

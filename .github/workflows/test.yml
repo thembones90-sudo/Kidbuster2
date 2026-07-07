@@ -1,0 +1,30 @@
+name: Tests
+
+# Runs the full test suite (tests/run-all.cjs) automatically on every push
+# and pull request — so a regression is caught here, before it ever
+# reaches Vercel, rather than being caught (or missed) after deploy.
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Matches package.json's "engines": { "node": ">=18" } — tested on
+        # both the oldest supported version and current LTS, so a change
+        # that only works on one Node version doesn't slip through.
+        node-version: [18.x, 20.x]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run test suite
+        run: npm test
