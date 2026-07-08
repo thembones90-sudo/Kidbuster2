@@ -1388,6 +1388,7 @@ const KidbusterCore = (function(){
   // rating string through unchanged; never parse it to an integer.
 
   const MA_PARENT_NOTE_LEVELS = ['1','1.5','2','2.5'];
+  const MA_NO_STAR_LEVELS = ['1','1.5','2','2.5','3'];
 
   // The protocol text references "the approved star collection" for Total
   // Stars Today but never defines it. This closes that gap — it's a fact
@@ -1486,7 +1487,8 @@ Template Rules
 * Grammar Mission
   OR
 * Speaking Mission
-  • Total Stars Today must contain exactly 10 star emojis from the approved star collection.
+  • Total Stars Today appears only for ratings above 3 and must contain exactly 10 star emojis from the approved star collection.
+  • For ratings 1, 1.5, 2, 2.5, and 3, omit the entire Total Stars Today section. These reports receive no stars.
   • End every report exactly with:
 
 Cheers,
@@ -1576,7 +1578,7 @@ OR
 Speaking Mission 🎯
 [Task]
 
-Total Stars Today:
+Total Stars Today: (Only for ratings above 3)
 
 [Exactly 10 approved star emojis]
 
@@ -1605,7 +1607,8 @@ Before returning the report, verify:
 ✓ Today's Lesson names the actual lesson theme, not a generic label.
 ✓ Today's Superpower is the strongest demonstrated skill this lesson, not a random positive trait.
 ✓ Positive Feedback references observable behavior from today's specific lesson, not generic encouragement.
-✓ Exactly 10 star emojis displayed.
+✓ Ratings above 3 display exactly 10 star emojis.
+✓ Ratings 1, 1.5, 2, 2.5, and 3 omit Total Stars Today entirely.
 ✓ Teacher speaks in first person throughout — name/title appears only in the final signature, nowhere else in the body.
 ✓ Report is under the __SOFT_TARGET__ working target — and under absolutely no circumstance at or over the immutable __HARD_CEILING__ ceiling.
 ✓ No markdown formatting.
@@ -1775,13 +1778,14 @@ Before returning the report, verify:
   function buildMARuntimeParams(params){
     const lvl = params.rating || '3';
     const includeParentNote = MA_PARENT_NOTE_LEVELS.includes(lvl);
+    const includeStars = !MA_NO_STAR_LEVELS.includes(lvl);
 
     return [
       'RUNTIME PARAMETERS FOR THIS REPORT (computed from the app, not part of the protocol text above — apply the protocol\'s rules using these exact values):',
       '- Selected rating: ' + lvl + '/5.',
       '- Tone for this rating per the Level Integration table: ' + LEVEL_TONE_DESC[lvl] + (isHalfPoint(lvl) ? ' This is a transitional half-point level, not a rounded value — blend naturally between its two neighboring tones.' : ''),
       '- Parent Note for this report: ' + (includeParentNote ? 'INCLUDE it (this rating is 1, 1.5, 2, or 2.5).' : 'OMIT it entirely (this rating is above 2.5).'),
-      '- The "approved star collection" for Total Stars Today is: ' + APPROVED_STARS_ALL.join(' ') + '. Favor ' + APPROVED_STARS_PRIMARY.join(' and ') + ' as the primary stars (most of the 10). Use ' + APPROVED_STARS_VARIETY.join(', ') + ' only occasionally, for variety — not as the majority. Use no emoji outside this list for the star count.'
+      '- Total Stars Today for this report: ' + (includeStars ? 'INCLUDE it with exactly 10 star emojis from this approved collection: ' + APPROVED_STARS_ALL.join(' ') + '. Favor ' + APPROVED_STARS_PRIMARY.join(' and ') + ' as the primary stars (most of the 10). Use ' + APPROVED_STARS_VARIETY.join(', ') + ' only occasionally, for variety — not as the majority. Use no emoji outside this list for the star count.' : 'OMIT the entire Total Stars Today section. Ratings 1, 1.5, 2, 2.5, and 3 receive no stars.')
     ].join('\n');
   }
 
@@ -1858,7 +1862,8 @@ Before returning the report, verify:
       '• Vocabulary definitions must remain short and child-friendly.',
       "• Notes should be based on the student's actual performance whenever possible.",
       '• Keep the tone appropriate to the selected Level Integration score.',
-      '• Exactly 10 star emojis must appear together, on their own line near the end of the report, with no heading before them.',
+      '• Ratings above 3 must include exactly 10 star emojis together, on their own line near the end of the report, with no heading before them.',
+      '• Ratings 1, 1.5, 2, 2.5, and 3 receive no stars. Omit the star line entirely for those ratings.',
       '• The educational framework is immutable. Grammar explanations, homework formats, vocabulary structure, pronunciation section, and overall report order must remain identical to the MA Protocol.',
       '• The only difference from the MA Protocol is the emotional narration, warmth, encouragement, and storytelling style.',
       '• Write as though Layne is speaking to a beloved child with endless patience, kindness, and genuine joy.',
@@ -1953,8 +1958,8 @@ Before returning the report, verify:
       'Speaking Mission 🎯',
       '[Task]',
       '',
-      '(Do not print a heading before the stars — simply place the 10 star emojis on their own line.)',
-      '[Exactly 10 star emojis.]',
+      '(Only for ratings above 3. Do not print a heading before the stars — simply place the 10 star emojis on their own line. Omit this line entirely for ratings 1 through 3.)',
+      '[Exactly 10 star emojis, only when rating is above 3.]',
       '',
       "[Write a sweet, uplifting closing that leaves the child smiling and excited for the next lesson.]",
       '',
@@ -2256,7 +2261,7 @@ Before returning the report, verify:
       warnings.push('Report is ' + charCount + ' characters — over the ' + tier.softTarget + ' working target. Trim before sending to stay safely under the ' + tier.hardCeiling + ' absolute limit.');
     }
 
-    // --- exact star count (uses the same approved list sent to the model) ---
+    // --- rating-aware star rule (uses the same approved list sent to the model) ---
     // Counting must be scoped, never done across the whole report — the
     // protocol allows any approved star emoji to double as a decorative
     // vocabulary icon (e.g. "Soul ✨ – ..."), which would otherwise inflate
@@ -2283,10 +2288,16 @@ Before returning the report, verify:
       }
     }
     if(starsScopeText === null){
-      warnings.push('Could not locate the "Total Stars Today" section to verify star count.');
+      if(!MA_NO_STAR_LEVELS.includes(lvl)){
+        warnings.push('Could not locate the "Total Stars Today" section to verify star count.');
+      }
     }else{
       const stars = (starsScopeText.match(starRegex) || []).length;
-      if(stars !== 10) warnings.push('Star count is ' + stars + ', expected exactly 10.');
+      if(MA_NO_STAR_LEVELS.includes(lvl)){
+        if(starsSectionMatch || stars > 0) warnings.push('Total Stars Today should be omitted entirely at ratings 1 through 3.');
+      }else if(stars !== 10){
+        warnings.push('Star count is ' + stars + ', expected exactly 10.');
+      }
     }
 
     warnings.push(...checkForbiddenFormatting(text));
