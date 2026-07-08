@@ -6,6 +6,8 @@
 // webhook, so feedback lands somewhere the developer can actually see it
 // instead of being trapped in each teacher's own browser localStorage.
 
+import { getLicense, isFounderLicenseKey } from './_lib/licensing.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -14,11 +16,19 @@ export default async function handler(req, res) {
   // Same lightweight shared-secret gate as /api/generate — keeps random
   // strangers who find the URL from spamming the sheet with junk rows.
   const expectedKey = process.env.APP_ACCESS_KEY;
-  if (expectedKey) {
-    const providedKey = req.headers['x-app-key'];
-    if (providedKey !== expectedKey) {
-      return res.status(401).json({ error: 'Invalid or missing access key' });
+  const providedKey = req.headers['x-app-key'];
+  let keyAllowed = !!(expectedKey && providedKey === expectedKey);
+  if (!keyAllowed && providedKey) {
+    try {
+      const license = await getLicense(providedKey);
+      keyAllowed = isFounderLicenseKey(providedKey) || !!(license && license.status === 'active');
+    } catch (err) {
+      console.error('feedback license check failed:', err);
+      return res.status(500).json({ error: 'Could not verify feedback access right now' });
     }
+  }
+  if (!keyAllowed) {
+    return res.status(401).json({ error: 'Invalid or missing access key' });
   }
 
   const { teacherName, protocol, ratingTier, score, comment } = req.body || {};

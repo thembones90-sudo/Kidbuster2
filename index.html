@@ -3561,7 +3561,7 @@ async function submitFeedback(score){
 
   let accessKey = getStoredAccessKey();
   if(!accessKey){
-    accessKey = promptForAccessKey();
+    accessKey = await promptForAccessKey();
     if(!accessKey){
       feedbackStatus.textContent = 'Not sent — access key required.';
       feedbackSubmitBtn.disabled = false;
@@ -3809,7 +3809,7 @@ async function generate(){
       // Free-limit-reached or protocol-requires-Pro — give a real,
       // clickable path to upgrade right where the block happened,
       // instead of just an error message with nowhere to go.
-      outputBox.innerHTML = escapeHtml(err.message) + '<br><br><button type="button" id="inlineUpgradeBtn" class="btn-secondary" style="width:auto; padding:8px 16px;">Upgrade to Pro</button>';
+      outputBox.innerHTML = escapeHtml(err.message) + '<br><br><button type="button" id="inlineChangeKeyBtn" class="btn-secondary" style="width:auto; padding:8px 16px; margin-right:8px;">Change key</button><button type="button" id="inlineUpgradeBtn" class="btn-secondary" style="width:auto; padding:8px 16px;">Upgrade to Pro</button>';
     }else{
       outputBox.textContent = 'Could not generate feedback. ' + err.message;
     }
@@ -3862,6 +3862,13 @@ async function startProUpgrade(){
 outputBox.addEventListener('click', (e) => {
   if(e.target && e.target.id === 'inlineUpgradeBtn'){
     startProUpgrade();
+  }
+  if(e.target && e.target.id === 'inlineChangeKeyBtn'){
+    try{ localStorage.removeItem(ACCESS_KEY_STORAGE); }catch(err){ /* storage unavailable */ }
+    promptForAccessKey().then(() => {
+      outputBox.className = 'output-box empty';
+      outputBox.textContent = 'Key saved. Try Generate feedback again.';
+    });
   }
 });
 
