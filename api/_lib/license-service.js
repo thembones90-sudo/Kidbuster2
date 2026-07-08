@@ -24,7 +24,7 @@ import {
   generateLicenseKey, currentUsagePeriod, evaluateEntitlement,
   getLicense, saveLicense, getLicenseKeyByEmail, saveEmailIndex,
   getLicenseKeyByPaymentCustomerId, savePaymentCustomerIndex,
-  getUsageCount, incrementUsage, normalizeEmail
+  getUsageCount, incrementUsage, normalizeEmail, isFounderLicenseKey
 } from './licensing.js';
 
 /**
@@ -166,6 +166,22 @@ export async function downgradeToFree({ licenseKey, paymentCustomerId }){
  * @returns {Promise<{allowed: boolean, reason: string|null, message: string|null, license: object|null}>}
  */
 export async function checkEntitlement(licenseKey, protocol){
+  if(isFounderLicenseKey(licenseKey)){
+    return {
+      allowed: true,
+      reason: null,
+      message: null,
+      license: {
+        email: '',
+        plan: 'pro',
+        status: 'active',
+        paymentCustomerId: null,
+        paymentSubscriptionId: null,
+        founder: true
+      }
+    };
+  }
+
   const license = await getLicense(licenseKey);
   if(!license){
     return { allowed: false, reason: 'invalid_key', message: 'Invalid license key.', license: null };
@@ -191,5 +207,6 @@ export async function checkEntitlement(licenseKey, protocol){
  * @param {string} licenseKey
  */
 export async function recordUsage(licenseKey){
+  if(isFounderLicenseKey(licenseKey)) return;
   await incrementUsage(licenseKey, currentUsagePeriod());
 }

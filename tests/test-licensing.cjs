@@ -81,14 +81,25 @@ module.exports = async function run(){
     check('different months produce different periods', licensing.currentUsagePeriod(new Date('2026-07-01T00:00:00Z')) !== licensing.currentUsagePeriod(new Date('2026-08-01T00:00:00Z')));
   }
 
-  console.log('\n4) normalizeEmail: case/whitespace insensitive');
+  console.log('\n4) isFounderLicenseKey: private env-listed full-access keys');
+  {
+    const oldFounderKeys = process.env.FOUNDER_LICENSE_KEYS;
+    process.env.FOUNDER_LICENSE_KEYS = 'test_founder_key, kb_live_owner_key';
+    check('exact founder key is recognized', licensing.isFounderLicenseKey('test_founder_key') === true);
+    check('surrounding whitespace is ignored', licensing.isFounderLicenseKey('  kb_live_owner_key  ') === true);
+    check('unknown key is not recognized', licensing.isFounderLicenseKey('test_non_founder_key') === false);
+    if(oldFounderKeys === undefined) delete process.env.FOUNDER_LICENSE_KEYS;
+    else process.env.FOUNDER_LICENSE_KEYS = oldFounderKeys;
+  }
+
+  console.log('\n5) normalizeEmail: case/whitespace insensitive');
   {
     check('lowercases', licensing.normalizeEmail('Nina@Example.COM') === 'nina@example.com');
     check('trims whitespace', licensing.normalizeEmail('  nina@example.com  ') === 'nina@example.com');
     check('empty/undefined -> empty string, not a crash', licensing.normalizeEmail(undefined) === '' && licensing.normalizeEmail('') === '');
   }
 
-  console.log('\n5) KV-backed primitives (against the local test stub)');
+  console.log('\n6) KV-backed primitives (against the local test stub)');
   {
     __resetForTests();
 
@@ -116,7 +127,7 @@ module.exports = async function run(){
     check('usage counts are isolated per period, not shared globally', (await licensing.getUsageCount(key, otherPeriod)) === 0);
   }
 
-  console.log('\n6) Webhook dedup primitives: hasProcessedWebhook / markWebhookProcessed');
+  console.log('\n7) Webhook dedup primitives: hasProcessedWebhook / markWebhookProcessed');
   {
     __resetForTests();
     const hash1 = 'abc123fakehash';
