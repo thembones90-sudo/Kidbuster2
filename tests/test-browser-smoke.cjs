@@ -117,14 +117,29 @@ module.exports = async function run(){
     seenBackgrounds.add(result.background);
   }
 
-  console.log('\n3) License modal: shows correctly, validates client-side, stores a pasted key without needing a live backend');
+  console.log('\n3) License modal: shows Pro/Free/existing-key paths, validates client-side, stores a pasted key without needing a live backend');
   {
     const modalShown = await page.evaluate(() => {
       window.__testModalPromise = promptForAccessKey();
       const overlay = document.getElementById('licenseModalOverlay');
-      return getComputedStyle(overlay).display !== 'none';
+      return {
+        visible: getComputedStyle(overlay).display !== 'none',
+        title: document.querySelector('.license-modal-title').textContent,
+        hasPro: !!document.getElementById('licenseModalProBtn'),
+        hasFree: !!document.getElementById('licenseModalFreeBtn'),
+        hasKey: !!document.getElementById('licenseModalKeyBtn')
+      };
     });
-    check('calling promptForAccessKey() shows the modal', modalShown);
+    check('calling promptForAccessKey() shows the modal', modalShown.visible);
+    check('modal is now the prepared access page', modalShown.title === 'Access Pathfinder' && modalShown.hasPro && modalShown.hasFree && modalShown.hasKey);
+
+    await page.click('#licenseModalProBtn');
+    await new Promise(r => setTimeout(r, 80));
+    const emptyProEmailError = await page.evaluate(() => {
+      const err = document.getElementById('licenseModalError');
+      return { visible: err.style.display !== 'none', text: err.textContent };
+    });
+    check('empty Pro checkout email -> client-side validation error shown, no crash', emptyProEmailError.visible && emptyProEmailError.text.includes('checkout'));
 
     // Clicking "Get my free key" with no email entered should show a
     // client-side validation error WITHOUT attempting any network call

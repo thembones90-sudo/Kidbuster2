@@ -945,9 +945,9 @@ body.protocol-beida .generate-btn.loading{
   border:1px solid var(--toxin-border);
   border-radius:var(--radius);
   box-shadow:0 0 40px -8px var(--toxin-glow), 0 20px 60px -20px rgba(0,0,0,0.7);
-  padding:32px;
+  padding:28px;
   width:100%;
-  max-width:420px;
+  max-width:560px;
   max-height:90vh;
   overflow-y:auto;
 }
@@ -965,10 +965,50 @@ body.protocol-beida .generate-btn.loading{
   line-height:1.5;
 }
 .license-modal-section{
-  margin-bottom:18px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:16px;
+  margin-bottom:12px;
+  background:rgba(255,255,255,0.025);
 }
 .license-modal-section input{
   width:100%;
+}
+.license-modal-section.primary{
+  border-color:var(--toxin-border);
+  background:var(--toxin-dim);
+  box-shadow:0 0 24px -18px var(--toxin-glow);
+}
+.license-modal-plan-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+.license-modal-plan-name{
+  font-family:var(--font-display);
+  color:var(--text);
+  font-size:16px;
+  margin:0;
+}
+.license-modal-plan-note{
+  color:var(--text-dim);
+  font-family:var(--font-body);
+  font-size:12px;
+  line-height:1.45;
+  margin:4px 0 0;
+}
+.license-modal-pill{
+  border:1px solid var(--toxin-border);
+  border-radius:999px;
+  color:var(--toxin);
+  font-family:var(--font-mono);
+  font-size:10px;
+  letter-spacing:0.08em;
+  padding:4px 8px;
+  text-transform:uppercase;
+  white-space:nowrap;
 }
 .license-modal-divider{
   display:flex;
@@ -994,6 +1034,18 @@ body.protocol-beida .generate-btn.loading{
   margin-top:16px;
   margin-bottom:0;
   line-height:1.5;
+}
+.license-modal-actions{
+  display:grid;
+  gap:10px;
+}
+.license-modal-actions.two{
+  grid-template-columns:1fr 1fr;
+}
+@media (max-width:560px){
+  .license-modal-actions.two{
+    grid-template-columns:1fr;
+  }
 }
 </style>
 
@@ -1116,21 +1168,46 @@ body.protocol-beida .generate-btn.loading{
 
 <div id="licenseModalOverlay" class="license-modal-overlay" style="display:none;">
   <div class="license-modal">
-    <h2 class="license-modal-title">Get started with Pathfinder</h2>
-    <p class="license-modal-subtitle">Free: 20 Classic reports/month. Pro: every protocol, unlimited.</p>
+    <h2 class="license-modal-title">Access Pathfinder</h2>
+    <p class="license-modal-subtitle">Use a saved key, start free, or prepare a Pro checkout when paid access opens.</p>
 
-    <div class="license-modal-section">
-      <label class="field-label" for="licenseModalEmail">New here? Get a free key</label>
-      <input type="email" id="licenseModalEmail" placeholder="your@email.com">
-      <button class="generate-btn" id="licenseModalFreeBtn" style="margin-top:10px;"><span class="btn-label" id="licenseModalFreeBtnLabel">Get my free key</span></button>
+    <div class="license-modal-section primary">
+      <div class="license-modal-plan-head">
+        <div>
+          <p class="license-modal-plan-name">Pro</p>
+          <p class="license-modal-plan-note">Unlimited reports, every current and future protocol.</p>
+        </div>
+        <span class="license-modal-pill">launch ready</span>
+      </div>
+      <label class="field-label" for="licenseModalProEmail">Email for Pro checkout</label>
+      <input type="email" id="licenseModalProEmail" placeholder="your@email.com">
+      <button class="generate-btn" id="licenseModalProBtn" style="margin-top:10px;"><span class="btn-label" id="licenseModalProBtnLabel">Continue to Pro</span></button>
     </div>
 
-    <div class="license-modal-divider"><span>or</span></div>
+    <div class="license-modal-actions two">
+      <div class="license-modal-section">
+        <div class="license-modal-plan-head">
+          <div>
+            <p class="license-modal-plan-name">Free</p>
+            <p class="license-modal-plan-note">20 Classic reports/month.</p>
+          </div>
+        </div>
+        <label class="field-label" for="licenseModalEmail">Email for free key</label>
+        <input type="email" id="licenseModalEmail" placeholder="your@email.com">
+        <button class="generate-btn" id="licenseModalFreeBtn" style="margin-top:10px;"><span class="btn-label" id="licenseModalFreeBtnLabel">Get my free key</span></button>
+      </div>
 
-    <div class="license-modal-section">
-      <label class="field-label" for="licenseModalKeyInput">Already have a key?</label>
-      <input type="text" id="licenseModalKeyInput" placeholder="kb_live_...">
-      <button class="btn-secondary" id="licenseModalKeyBtn" style="margin-top:10px; width:100%;">Continue</button>
+      <div class="license-modal-section">
+        <div class="license-modal-plan-head">
+          <div>
+            <p class="license-modal-plan-name">Already subscribed</p>
+            <p class="license-modal-plan-note">Paste your existing license or owner key.</p>
+          </div>
+        </div>
+        <label class="field-label" for="licenseModalKeyInput">License key</label>
+        <input type="text" id="licenseModalKeyInput" placeholder="kb_live_...">
+        <button class="btn-secondary" id="licenseModalKeyBtn" style="margin-top:10px; width:100%;">Continue</button>
+      </div>
     </div>
 
     <p class="license-modal-error" id="licenseModalError" style="display:none;"></p>
@@ -3363,7 +3440,10 @@ function promptForAccessKey(){
   return new Promise((resolve) => {
     const overlay = document.getElementById('licenseModalOverlay');
     const emailInput = document.getElementById('licenseModalEmail');
+    const proEmailInput = document.getElementById('licenseModalProEmail');
     const keyInput = document.getElementById('licenseModalKeyInput');
+    const proBtn = document.getElementById('licenseModalProBtn');
+    const proBtnLabel = document.getElementById('licenseModalProBtnLabel');
     const freeBtn = document.getElementById('licenseModalFreeBtn');
     const freeBtnLabel = document.getElementById('licenseModalFreeBtnLabel');
     const keyBtn = document.getElementById('licenseModalKeyBtn');
@@ -3377,9 +3457,37 @@ function promptForAccessKey(){
     function finish(key){
       try{ localStorage.setItem(ACCESS_KEY_STORAGE, key); }catch(e){ /* storage unavailable */ }
       overlay.style.display = 'none';
+      proBtn.removeEventListener('click', onProClick);
       freeBtn.removeEventListener('click', onFreeClick);
       keyBtn.removeEventListener('click', onKeyClick);
       resolve(key);
+    }
+
+    async function onProClick(){
+      const email = proEmailInput.value.trim();
+      if(!email){ showError('Please enter your email for checkout.'); return; }
+      errorEl.style.display = 'none';
+      proBtn.disabled = true;
+      proBtnLabel.textContent = 'Starting checkout...';
+      try{
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json().catch(() => ({}));
+        if(!res.ok || !data.url){
+          showError(data.error || 'Could not start checkout right now. Please try again shortly.');
+          proBtn.disabled = false;
+          proBtnLabel.textContent = 'Continue to Pro';
+          return;
+        }
+        window.location.href = data.url;
+      }catch(e){
+        showError('Network error — check your connection and try again.');
+        proBtn.disabled = false;
+        proBtnLabel.textContent = 'Continue to Pro';
+      }
     }
 
     async function onFreeClick(){
@@ -3418,10 +3526,14 @@ function promptForAccessKey(){
 
     errorEl.style.display = 'none';
     emailInput.value = '';
+    proEmailInput.value = '';
     keyInput.value = '';
+    proBtn.disabled = false;
+    proBtnLabel.textContent = 'Continue to Pro';
     freeBtn.disabled = false;
     freeBtnLabel.textContent = 'Get my free key';
     overlay.style.display = 'flex';
+    proBtn.addEventListener('click', onProClick);
     freeBtn.addEventListener('click', onFreeClick);
     keyBtn.addEventListener('click', onKeyClick);
   });
