@@ -117,7 +117,50 @@ module.exports = async function run(){
     seenBackgrounds.add(result.background);
   }
 
-  console.log('\n3) No new page errors accumulated from clicking through every protocol');
+  console.log('\n3) License modal: shows correctly, validates client-side, stores a pasted key without needing a live backend');
+  {
+    const modalShown = await page.evaluate(() => {
+      window.__testModalPromise = promptForAccessKey();
+      const overlay = document.getElementById('licenseModalOverlay');
+      return getComputedStyle(overlay).display !== 'none';
+    });
+    check('calling promptForAccessKey() shows the modal', modalShown);
+
+    // Clicking "Get my free key" with no email entered should show a
+    // client-side validation error WITHOUT attempting any network call
+    // (there's no live backend for this file:// test to talk to).
+    await page.click('#licenseModalFreeBtn');
+    await new Promise(r => setTimeout(r, 80));
+    const emptyEmailError = await page.evaluate(() => {
+      const err = document.getElementById('licenseModalError');
+      return { visible: err.style.display !== 'none', text: err.textContent };
+    });
+    check('empty email -> client-side validation error shown, no crash', emptyEmailError.visible && emptyEmailError.text.length > 0);
+
+    // Pasting an existing key and clicking Continue should work entirely
+    // client-side (no network call needed for this path at all) and
+    // resolve the pending promise.
+    await page.type('#licenseModalKeyInput', 'kb_live_test_pasted_key');
+    await page.click('#licenseModalKeyBtn');
+    await new Promise(r => setTimeout(r, 80));
+
+    const afterPaste = await page.evaluate(async () => {
+      const resolvedKey = await window.__testModalPromise;
+      const overlay = document.getElementById('licenseModalOverlay');
+      let stored = null;
+      try{ stored = localStorage.getItem(ACCESS_KEY_STORAGE); }catch(e){ /* ignore */ }
+      return {
+        resolvedKey,
+        overlayHidden: getComputedStyle(overlay).display === 'none',
+        stored
+      };
+    });
+    check('promptForAccessKey() resolves with the pasted key', afterPaste.resolvedKey === 'kb_live_test_pasted_key');
+    check('modal hides itself after a successful entry', afterPaste.overlayHidden);
+    check('the key is persisted to localStorage under ACCESS_KEY_STORAGE', afterPaste.stored === 'kb_live_test_pasted_key');
+  }
+
+  console.log('\n4) No new page errors accumulated from clicking through every protocol and the license modal');
   check('still zero page errors after full interaction', pageErrors.length === 0);
 
   await browser.close();

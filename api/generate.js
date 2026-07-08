@@ -40,31 +40,51 @@ function buildCacheableSystemBlocks(systemPrompt) {
   ];
 }
 
+import { checkEntitlement, recordUsage } from './_lib/license-service.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // --- lightweight shared-secret gate ---
-  // Not a real auth system — no accounts, no per-user identity. Just
-  // enough to stop a bare public URL from being freely usable by anyone
-  // who stumbles on it. Set APP_ACCESS_KEY in Vercel's environment
-  // variables; the frontend prompts the user for this once and remembers
-  // it in localStorage.
-  const expectedKey = process.env.APP_ACCESS_KEY;
-  if (expectedKey) {
-    const providedKey = req.headers['x-app-key'];
-    if (providedKey !== expectedKey) {
-      return res.status(401).json({ error: 'Invalid or missing access key' });
-    }
-  }
-
-  const { systemPrompt, userMessage } = req.body || {};
+  const { systemPrompt, userMessage, protocol } = req.body || {};
   if (!systemPrompt || typeof systemPrompt !== 'string') {
     return res.status(400).json({ error: 'Missing or invalid systemPrompt' });
   }
   if (!userMessage || typeof userMessage !== 'string') {
     return res.status(400).json({ error: 'Missing or invalid userMessage' });
+  }
+  if (!protocol || typeof protocol !== 'string') {
+    return res.status(400).json({ error: 'Missing or invalid protocol' });
+  }
+
+  // --- per-license entitlement gate ---
+  // This route never talks to Vercel KV or any payment provider directly
+  // — it only ever calls license-service.js (see api/_lib/license-service.js),
+  // the middle layer between any payment provider and this app:
+  //
+  //   Payment Provider  →  License Service  →  Kidbuster
+  //
+  // Every teacher now has their own personal license key (Free or Pro),
+  // issued via api/license-signup.js or upgraded to Pro via a payment
+  // provider's checkout — sent in the same x-app-key header the old
+  // single shared-team password used to occupy, so this is a swap of
+  // what that header MEANS, not a new mechanism.
+  const licenseKey = req.headers['x-app-key'];
+  if (!licenseKey) {
+    return res.status(401).json({ error: 'A license key is required.', reason: 'missing_key' });
+  }
+
+  let entitlement;
+  try {
+    entitlement = await checkEntitlement(licenseKey, protocol);
+  } catch (err) {
+    console.error('generate.js: error checking entitlement:', err);
+    return res.status(500).json({ error: 'Could not verify your license right now. Please try again shortly.' });
+  }
+  if (!entitlement.allowed) {
+    const status = entitlement.reason === 'invalid_key' ? 401 : 402;
+    return res.status(status).json({ error: entitlement.message, reason: entitlement.reason });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -109,6 +129,16 @@ export default async function handler(req, res) {
 
   if (!text) {
     return res.status(502).json({ error: 'Anthropic returned an empty response' });
+  }
+
+  // Only count a generation against the license's monthly usage once
+  // Anthropic has actually returned real content — a failed or empty
+  // response was never a delivered report and shouldn't cost the teacher
+  // part of their Free allowance.
+  try {
+    await recordUsage(licenseKey);
+  } catch (err) {
+    console.error('generate.js: error recording usage (report still delivered):', err);
   }
 
   // data.usage now includes cache_creation_input_tokens / cache_read_input_tokens

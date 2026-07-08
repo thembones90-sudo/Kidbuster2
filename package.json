@@ -10,6 +10,9 @@
   "scripts": {
     "test": "node tests/run-all.cjs"
   },
+  "dependencies": {
+    "@vercel/kv": "^2.0.0"
+  },
   "devDependencies": {
     "puppeteer": "^23.0.0"
   }

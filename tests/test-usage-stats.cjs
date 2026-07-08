@@ -62,7 +62,7 @@ module.exports = function run(){
     // a real browser session would, rather than two fully-isolated helpers.
     const fs = require('fs');
     const path = require('path');
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8').replace(/\r\n/g, '\n');
     const startIdx = html.indexOf('const USAGE_STATS_KEY');
     const endIdx = html.indexOf('\n  return s;\n};', startIdx) + '\n  return s;\n};'.length;
     const code = html.slice(startIdx, endIdx);

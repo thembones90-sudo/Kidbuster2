@@ -21,7 +21,7 @@ const START_MARKER = 'const USAGE_STATS_KEY';
 const END_MARKER = "\n  return { total: history.length, successful: successEntries.length, failed: errorEntries.length, successRate, avgDurationMs, byProtocol, byDay, byHour, peakHour };\n};";
 
 function extractUsageStatsModule(){
-  const html = fs.readFileSync(INDEX_HTML_PATH, 'utf8');
+  const html = fs.readFileSync(INDEX_HTML_PATH, 'utf8').replace(/\r\n/g, '\n');
 
   const startIdx = html.indexOf(START_MARKER);
   if(startIdx === -1){
@@ -34,7 +34,7 @@ function extractUsageStatsModule(){
   const endIdx = html.indexOf(END_MARKER, startIdx);
   if(endIdx === -1){
     throw new Error(
-      'extract-usage-stats: found the start but not the expected end ("return s;\\n};") after it. ' +
+      'extract-usage-stats: found the start but not the expected analytics closing marker after it. ' +
       'If window.kidbusterStats\'s closing changed, update END_MARKER in tests/helpers/extract-usage-stats.cjs.'
     );
   }

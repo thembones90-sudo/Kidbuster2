@@ -19,7 +19,7 @@ const START_MARKER = "const SYSTEM_PROMPT_DIVIDER";
 const END_MARKER = "\n}\n";
 
 function extractBuildCacheableSystemBlocks(){
-  const code = fs.readFileSync(GENERATE_JS_PATH, 'utf8');
+  const code = fs.readFileSync(GENERATE_JS_PATH, 'utf8').replace(/\r\n/g, '\n');
 
   const startIdx = code.indexOf(START_MARKER);
   if(startIdx === -1){

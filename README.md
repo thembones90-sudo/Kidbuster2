@@ -16,7 +16,7 @@ Browser (index.html)  →  /api/generate  (Vercel serverless function)  →  Ant
 ## What changed from the old single-file version, and why
 
 1. **The API key moved server-side.** The old version called Anthropic directly from the browser with no key at all — it only worked inside Claude's own artifact environment, which transparently proxies those calls. Opened anywhere else (a real deployed site), that call would simply fail, and even if a key were added, browsers can't call Anthropic's API directly (CORS blocks it) — exposing a key in browser code would also be a real security problem the moment this is shared with anyone else.
-2. **A shared access-key gate was added.** Hiding the key alone isn't enough — a public URL with no protection at all could be found and used by strangers to spend your API budget. `APP_ACCESS_KEY` is a simple shared password, not real per-user authentication. The frontend asks for it once and remembers it in the browser's local storage. This is intentionally lightweight — real accounts/auth are a separate, later concern once this becomes a genuine multi-tenant product, not something to build prematurely for a two-person test.
+2. **A shared access-key gate was added, then later replaced entirely.** Hiding the key alone isn't enough — a public URL with no protection at all could be found and used by strangers to spend your API budget. `APP_ACCESS_KEY` started as a simple shared password, not real per-user authentication — fine for a two-person test, but it couldn't distinguish who was using the app or cap anyone's usage. It's since been replaced by real per-teacher license keys (Free/Pro plans, usage tracked per license in Vercel KV) — see "Monetization" below. The `x-app-key` header the frontend already sent is the same mechanism; only what that header *means* changed.
 3. **Teacher identity is now a field in the app, not hardcoded text.** Both protocols previously hardcoded "Teacher Layne" in the sign-off. There's now a **Teacher** field in the UI (defaults to "Layne", so nothing changes for your own use unless you type something else). It's substituted into the prompt before sending, and the validator checks the sign-off against whatever name was actually used — tested to confirm it's fully backward-compatible with existing behavior when left as "Layne".
 4. **Nothing else changed.** MA Protocol, OF Protocol, the ProtocolManager registry, both validators, the rating tracks, the UI, the whole generation flow — byte-for-byte the same logic, just reading from a different endpoint for the actual API call.
 
@@ -32,27 +32,51 @@ git push
 ### 2. Connect to Vercel
 1. Go to [vercel.com](https://vercel.com), sign in (GitHub login is easiest).
 2. **Add New → Project**, select your Kidbuster repository.
-3. Vercel will auto-detect this as a static project with a serverless function — no build settings need to be changed. Don't set a build command or output directory; leave them blank/default.
+3. Vercel will auto-detect this as a static project with serverless functions — no build settings need to be changed. Don't set a build command or output directory; leave them blank/default.
 
-### 3. Set environment variables
-Before deploying (or right after, then redeploy), go to **Project Settings → Environment Variables** and add:
+### 3. Connect Vercel KV (required — this is where license/usage data lives)
+1. In your Vercel project, go to **Storage → Create Database → KV**.
+2. Follow the prompts to connect it to this project. Vercel automatically sets `KV_REST_API_URL` and `KV_REST_API_TOKEN` for you — you don't need to enter those yourself.
 
-| Name | Value |
-|---|---|
-| `ANTHROPIC_API_KEY` | Your real Anthropic API key |
-| `APP_ACCESS_KEY` | A shared password you choose (tell Nina what it is) |
+### 4. Set up Lemon Squeezy (the payment provider — see "Monetization" below for the full picture)
+1. Create an account at [lemonsqueezy.com](https://lemonsqueezy.com) if you don't have one — this works from Serbia and most other countries Stripe doesn't cover.
+2. Create a **Pro** subscription product (whatever monthly price you want). Note its **Variant ID** (visible on the product's variant page).
+3. Go to **Settings → API** and create an API key. Note your **Store ID** too (visible in store settings).
+4. Go to **Settings → Webhooks**, add a webhook pointed at `https://yourdomain.vercel.app/api/payment-webhook`, subscribed to at minimum: `subscription_created`, `subscription_payment_success`, `subscription_cancelled`, `subscription_expired`. Lemon Squeezy doesn't generate a signing secret for you — type any random string yourself (6-40 characters) as the secret; you'll enter this same string in Vercel's env vars next.
 
-### 4. Deploy
+### 5. Set environment variables
+Go to **Project Settings → Environment Variables** and add everything from `.env.example` — see that file for what each one does and where to find its value. At minimum you need: `ANTHROPIC_API_KEY`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_PRO_VARIANT_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, and `SITE_URL`.
+
+### 6. Deploy
 Click **Deploy**. Vercel gives you a URL like `https://kidbuster-yourname.vercel.app` — this is the real, live, shareable app.
 
-## How Nina uses it
+## Monetization: Free vs Pro
 
-1. Open the URL you send her (`https://kidbuster-yourname.vercel.app`) in any browser, on her own computer. No Claude, no API key, no development environment, no GitHub account needed.
-2. The first time she generates a report, the app will ask for the **access key** — she enters the shared password you gave her, once. The browser remembers it after that.
-3. She sets the **Teacher** field to her own name (once — it's remembered afterward).
+Two plans, nothing more granular:
+
+- **Free** — 20 report generations/month (configurable via `FREE_MONTHLY_LIMIT`), Classic (MA) protocol only.
+- **Pro** — flat monthly subscription, unlimited reports, every protocol, automatic access to future ones too.
+
+The architecture is deliberately payment-provider-agnostic:
+
+```
+Payment Provider  →  License Service  →  Kidbuster
+```
+
+`api/_lib/license-service.js` is the only thing that knows how to create, upgrade, downgrade, or check a license — it has zero knowledge of Lemon Squeezy, Paddle, or any other provider. Each payment provider's *only* job (see `api/_lib/providers/`) is to normalize its own webhook events into four plain notifications: payment succeeded, subscription renewed, subscription canceled, subscription expired. `api/generate.js` never imports a payment provider at all — it only ever talks to the License Service.
+
+Lemon Squeezy is the one fully-implemented provider today; Paddle exists as a documented stub in `api/_lib/providers/paddle.js` showing the same interface, for whenever that's worth building out. Swapping providers means writing one new file in `api/_lib/providers/` and changing the `PAYMENT_PROVIDER` env var — nothing in the License Service, `api/generate.js`, or any other route needs to change.
+
+A teacher gets a Free key via the in-app "Get my free key" flow (email only, no payment) or upgrades to Pro via a real checkout with whichever provider is active — both paths land on the same personal license key, which replaces the old single shared team password (`APP_ACCESS_KEY`) entirely.
+
+## How a teacher uses it
+
+1. Open the URL you send them in any browser, on their own computer. No Claude, no API key, no development environment, no GitHub account needed.
+2. The first time they generate a report, they're prompted to either get a Free key (just an email — no payment) or enter an existing one. That's stored in their browser going forward.
+3. They set the **Teacher** field to their own name (once — it's remembered afterward).
 4. Everything else is identical to how you use it: pick a protocol, pick a rating, paste notes, click Generate.
 
-That's the entire experience for her — open a link, enter a password once, use the app exactly as you do.
+Free comes with the same real limits everyone gets: 20 reports/month, Classic protocol only. Upgrading to Pro (unlimited, every protocol) is a button click away, handled entirely by the payment provider's own hosted checkout — no card details ever touch this app.
 
 ## Field-test feedback system
 
@@ -96,5 +120,7 @@ This runs both the static frontend and the serverless function locally, using a 
 
 ## Known limitations, on purpose
 
-- **`APP_ACCESS_KEY` is a shared password, not real authentication.** Fine for a small private team; if this grows toward the SaaS phase described in the project's own roadmap, this gets replaced by real per-teacher accounts, which is a separate, larger effort deliberately not built prematurely here.
+- **Paddle is a documented stub, not a real integration.** `api/_lib/providers/paddle.js` implements the same interface as the Lemon Squeezy adapter but throws "not implemented" — it exists to prove the payment-provider abstraction is genuinely swappable, not to be used yet. Build it out (and flip `PAYMENT_PROVIDER=paddle`) whenever there's an actual reason to switch providers.
+- **No self-service billing portal.** A Pro subscriber can't currently view/cancel their own subscription from inside this app — that lives entirely on Lemon Squeezy's own hosted pages (which do have this), reached via the email receipt Lemon Squeezy sends, not a link inside Kidbuster itself.
+- **Cancellation and expiration currently have identical effects** (both immediately fall back to Free) — there's no grace period modeled between "canceled, but paid through end of period" and "access actually ends." Simple on purpose, matching the product's own "just Free and Pro, nothing fancier" philosophy; worth revisiting if it ever actually annoys a real subscriber.
 - **Model, max_tokens, and API version are fixed server-side** in `api/generate.js` rather than sent from the browser — this is a deliberate security choice, not an oversight, so a request from the browser can't override which model gets called or its parameters.

@@ -17,6 +17,8 @@
 const fs = require('fs');
 const path = require('path');
 
+process.env.KIDBUSTER_TEST_KV = '1';
+
 const TESTS_DIR = __dirname;
 
 const testFiles = fs.readdirSync(TESTS_DIR)
