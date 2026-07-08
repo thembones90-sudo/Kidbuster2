@@ -5,8 +5,7 @@ const { createChecker } = require('./helpers/assert.cjs');
 /**
  * Covers OF's own foundational validator checks — section presence/order,
  * per-section character limits, the 180-300 word range, the qualitative-
- * tier-leak guard, and its "Prepared by" sign-off (distinct from MA/
- * Sugarcoat's "Cheers,"/"Love," + emoji). None of this was covered by any
+ * tier-leak guard, and its generic "Cheers," sign-off. None of this was covered by any
  * other test file, despite OF being one of the two original protocols.
  */
 module.exports = function run(){
@@ -28,7 +27,7 @@ module.exports = function run(){
     return words.join(' ');
   }
 
-  function baseReport({ strengthsWords = 90, areasWords = 90, suggestionsWords = 60, order = ['Strengths', 'Areas for Improvement', 'Learning Suggestions'], signoff = 'Prepared by\nTeacher Layne' } = {}){
+  function baseReport({ strengthsWords = 90, areasWords = 90, suggestionsWords = 60, order = ['Strengths', 'Areas for Improvement', 'Learning Suggestions'], signoff = 'Cheers,\nTeacher Layne' } = {}){
     const sections = {
       'Strengths': 'Strengths:\n' + words(strengthsWords, 'The student showed strong listening skills and stayed engaged.'),
       'Areas for Improvement': 'Areas for Improvement:\n' + words(areasWords, 'Pronunciation of longer words could use more practice.'),
@@ -44,6 +43,16 @@ module.exports = function run(){
     const warnings = KidbusterCore.analyzeOFOutput(report, 'Medium', 'Layne');
     check('valid report -> zero warnings', warnings.length === 0);
     if(warnings.length){ console.log('    (unexpected warnings:', warnings, ')'); }
+  }
+
+  console.log('\n1b) OF prompt uses the generic Cheers sign-off, not the old Prepared by closing');
+  {
+    const prompt = KidbusterCore.applyTeacherIdentity(
+      KidbusterCore.buildOFSystemPrompt({ rating: 'Medium' }),
+      'Nina'
+    );
+    check('prompt contains "Cheers, / Teacher Nina"', prompt.includes('Cheers,\nTeacher Nina'));
+    check('prompt no longer contains "Prepared by"', !prompt.includes('Prepared by'));
   }
 
   console.log('\n2) All 3 required sections must be present');
@@ -114,18 +123,22 @@ module.exports = function run(){
     check('ordinary words "high"/"low" in prose -> NOT flagged (not a real leak)', !warnOrdinary.some(w => w.includes('leaked')));
   }
 
-  console.log('\n7) Sign-off must exactly match "Prepared by / Teacher {name}" (no emoji, unlike MA/Sugarcoat)');
+  console.log('\n7) Sign-off must exactly match "Cheers, / Teacher {name}" (no emoji)');
   {
     const wrongPhrase = baseReport({ signoff: 'Sincerely,\nTeacher Layne' });
     const warn = KidbusterCore.analyzeOFOutput(wrongPhrase, 'Medium', 'Layne');
     check('wrong closing phrase -> flagged', warn.some(w => w.includes('sign-off')));
 
-    const withEmoji = baseReport({ signoff: 'Prepared by\nTeacher Layne 🐺' });
+    const withEmoji = baseReport({ signoff: 'Cheers,\nTeacher Layne *' });
     const warnEmoji = KidbusterCore.analyzeOFOutput(withEmoji, 'Medium', 'Layne');
-    check('OF sign-off with an emoji appended -> flagged (OF never uses one)', warnEmoji.some(w => w.includes('sign-off')));
+    check('OF sign-off with anything appended -> flagged', warnEmoji.some(w => w.includes('sign-off')));
 
     const correct = KidbusterCore.analyzeOFOutput(baseReport(), 'Medium', 'Layne');
-    check('correct "Prepared by" sign-off, no emoji -> not flagged', !correct.some(w => w.includes('sign-off')));
+    check('correct "Cheers" sign-off, no emoji -> not flagged', !correct.some(w => w.includes('sign-off')));
+
+    const otherTeacher = baseReport({ signoff: 'Cheers,\nTeacher Nina' });
+    const correctOtherTeacher = KidbusterCore.analyzeOFOutput(otherTeacher, 'Medium', 'Nina');
+    check('correct "Cheers" sign-off uses the selected teacher name', !correctOtherTeacher.some(w => w.includes('sign-off')));
   }
 
   console.log('\n8) Forbidden formatting: no bold, no italics (shared across every protocol)');

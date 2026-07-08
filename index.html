@@ -1491,7 +1491,7 @@ Learning Suggestions
 
 [Approximately 2-4 sentences. Practical recommendations for future lessons — which areas should receive the most attention and why. May naturally support a sense of the right next level or pacing through the substance of the suggestion itself, but never state a level, grade, or platform field directly — that information already lives elsewhere in the platform.]
 
-Prepared by
+Cheers,
 Teacher Layne
 
 ────────────────────────────────────────
@@ -2314,12 +2314,12 @@ Before returning the report, verify:
       return text.slice(startIdx, endIdx).trim();
     }
 
-    const strengthsBody = extractSectionBody('Strengths', ['Areas for Improvement', 'Learning Suggestions', 'Prepared by']);
+    const strengthsBody = extractSectionBody('Strengths', ['Areas for Improvement', 'Learning Suggestions', 'Cheers,']);
     if(strengthsBody !== null && strengthsBody.length > 1300){
       warnings.push('Strengths section is ' + strengthsBody.length + ' characters — over the platform\'s 1300-character field limit.');
     }
 
-    const areasBody = extractSectionBody('Areas for Improvement', ['Learning Suggestions', 'Prepared by']);
+    const areasBody = extractSectionBody('Areas for Improvement', ['Learning Suggestions', 'Cheers,']);
     if(areasBody !== null && areasBody.length > 1300){
       warnings.push('Areas for Improvement section is ' + areasBody.length + ' characters — over the platform\'s 1300-character field limit.');
     }
@@ -2335,8 +2335,8 @@ Before returning the report, verify:
     }
 
     // --- exact closing ---
-    if(!new RegExp('Prepared by\\s*\\n?\\s*Teacher ' + escapedName + '\\s*$', 'i').test(text.trim())){
-      warnings.push('Closing sign-off does not exactly match "Prepared by / Teacher ' + name + '".');
+    if(!new RegExp('Cheers,\\s*\\n?\\s*Teacher ' + escapedName + '\\s*$', 'i').test(text.trim())){
+      warnings.push('Closing sign-off does not exactly match "Cheers, / Teacher ' + name + '".');
     }
 
     return warnings;
