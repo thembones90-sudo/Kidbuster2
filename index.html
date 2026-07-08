@@ -1358,10 +1358,10 @@ const KidbusterCore = (function(){
   const LEVELS = ['1','1.5','2','2.5','3','3.5','4','4.5','5','6'];
 
   const LEVEL_TONE_DESC = {
-    '1':   'Complete shambles. Firm, improvement-focused, strong parental guidance.',
-    '1.5': 'Significant difficulties but genuine effort shown. Firm guidance with noticeable encouragement.',
-    '2':   'Below expectations. Encouraging but clear about the need for effort.',
-    '2.5': 'Improving but inconsistent. Balanced between constructive guidance and growing confidence.',
+    '1':   'Very poor performance. Direct, firm, improvement-focused, with strong parental guidance and no softening of the main concern.',
+    '1.5': 'Major difficulties with limited success. Firm and clear about weak performance, while acknowledging any genuine effort shown.',
+    '2':   'Below expectations. Sharper than neutral, honest about lack of effort or weak results, with clear next steps.',
+    '2.5': 'Inconsistent and not yet satisfactory. Balanced but still firm, making it clear that better focus, effort, or accuracy is needed.',
     '3':   'Neutral. Balanced, steady, light guidance.',
     '3.5': 'Mostly neutral with some warm praise.',
     '4':   'Better than expected. Warm, proud, highlighting growth.',
@@ -1417,10 +1417,10 @@ The MA Protocol is the highest-priority instruction for report generation. It mu
 LEVEL INTEGRATION
 (Internal only. Never shown to parents.)
 
-• 1/5 = Complete shambles. Firm, improvement-focused, strong parental guidance.
-• 1.5/5 = Significant difficulties but genuine effort shown. Firm guidance with noticeable encouragement.
-• 2/5 = Below expectations. Encouraging but clear about the need for effort.
-• 2.5/5 = Improving but inconsistent. Balanced between constructive guidance and growing confidence.
+• 1/5 = Very poor performance. Direct, firm, improvement-focused, with strong parental guidance and no softening of the main concern.
+• 1.5/5 = Major difficulties with limited success. Firm and clear about weak performance, while acknowledging any genuine effort shown.
+• 2/5 = Below expectations. Sharper than neutral, honest about lack of effort or weak results, with clear next steps.
+• 2.5/5 = Inconsistent and not yet satisfactory. Balanced but still firm, making it clear that better focus, effort, or accuracy is needed.
 • 3/5 = Neutral. Balanced, steady, light guidance.
 • 3.5/5 = Mostly neutral with some warm praise.
 • 4/5 = Better than expected. Warm, proud, highlighting growth.
@@ -1469,6 +1469,7 @@ Content
 • Keep vocabulary definitions short, simple and child-friendly.
 • Keep observations based on actual student performance whenever possible.
 • Match the writing tone precisely to the selected Level Integration score.
+• For ratings 1, 1.5, 2, and 2.5, do not over-praise, sugarcoat, or make the report sound like a successful lesson. The tone must be noticeably firmer and more direct than rating 3, clearly stating that the student's performance, focus, effort, behavior, or accuracy was not good enough today while still remaining professional, constructive, and child-safe.
 • Use the actual lesson theme for Today's Lesson whenever possible — not a generic label like "English Practice." Name what the lesson was actually about.
 • Positive Feedback should reference observable behavior from today's specific lesson whenever possible, not generic encouragement that could apply to any student on any day.
 
@@ -1862,6 +1863,7 @@ Before returning the report, verify:
       '• Vocabulary definitions must remain short and child-friendly.',
       "• Notes should be based on the student's actual performance whenever possible.",
       '• Keep the tone appropriate to the selected Level Integration score.',
+      '• For ratings 1, 1.5, 2, and 2.5, Sweet Voice must still be honest: do not over-praise, hide weak performance, or make the lesson sound successful. Keep the language gentle, but make the message clearly firmer than rating 3 and directly name the need for better focus, effort, behavior, or accuracy.',
       '• Ratings 3 and above must include exactly 10 star emojis together, on their own line near the end of the report, with no heading before them.',
       '• Ratings 1, 1.5, 2, and 2.5 receive no stars. Omit the star line entirely for those ratings.',
       '• The educational framework is immutable. Grammar explanations, homework formats, vocabulary structure, pronunciation section, and overall report order must remain identical to the MA Protocol.',

@@ -106,6 +106,17 @@ module.exports = function run(){
     });
   }
 
+  console.log('\n2b) Low ratings require a firmer, sharper tone');
+  {
+    const lowPrompt = KidbusterCore.buildMASystemPrompt({ rating: '2', lengthFormat: 'long' });
+    check('Classic low-rating prompt says not to over-praise or sugarcoat', lowPrompt.includes('do not over-praise, sugarcoat'));
+    check('Classic low-rating prompt says weak performance must be named clearly', lowPrompt.includes('was not good enough today'));
+
+    const sweetLowPrompt = KidbusterCore.PROTOCOLS.MS.buildSystemPrompt({ rating: '2', lengthFormat: 'long' });
+    check('Sugarcoat low-rating prompt says not to over-praise', sweetLowPrompt.includes('do not over-praise'));
+    check('Sugarcoat low-rating prompt keeps a firmer message than rating 3', sweetLowPrompt.includes('clearly firmer than rating 3'));
+  }
+
   console.log('\n3) Parent Note gating: required at 1/1.5/2/2.5, forbidden above 2.5');
   {
     ['1', '1.5', '2', '2.5'].forEach(lvl => {
