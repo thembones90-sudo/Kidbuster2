@@ -13,6 +13,7 @@ module.exports = async function run(){
 
   const originalEnv = {
     APP_ACCESS_KEY: process.env.APP_ACCESS_KEY,
+    OWNER_LICENSE_KEYS: process.env.OWNER_LICENSE_KEYS,
     FOUNDER_LICENSE_KEYS: process.env.FOUNDER_LICENSE_KEYS,
     GOOGLE_SHEET_WEBHOOK_URL: process.env.GOOGLE_SHEET_WEBHOOK_URL
   };
@@ -58,6 +59,7 @@ module.exports = async function run(){
     {
       __resetForTests();
       process.env.APP_ACCESS_KEY = 'admin_test_key';
+      process.env.OWNER_LICENSE_KEYS = '';
       process.env.FOUNDER_LICENSE_KEYS = '';
       process.env.GOOGLE_SHEET_WEBHOOK_URL = 'https://example.test/feedback';
       let calls = 0;
@@ -71,10 +73,11 @@ module.exports = async function run(){
       check('forwarded one feedback row to the sheet webhook', calls === 1);
     }
 
-    console.log('\n2) founder key works for feedback too');
+    console.log('\n2) owner/founder keys work for feedback too');
     {
       __resetForTests();
       process.env.APP_ACCESS_KEY = 'some_other_admin_key';
+      process.env.OWNER_LICENSE_KEYS = 'test_owner_key';
       process.env.FOUNDER_LICENSE_KEYS = 'test_founder_key';
       process.env.GOOGLE_SHEET_WEBHOOK_URL = 'https://example.test/feedback';
       let calls = 0;
@@ -83,15 +86,18 @@ module.exports = async function run(){
         return { ok: true };
       };
 
+      const ownerResult = await callFeedback({ key: 'test_owner_key' });
       const result = await callFeedback({ key: 'test_founder_key' });
+      check('accepted owner key even though it is not APP_ACCESS_KEY', ownerResult.statusCode === 200 && ownerResult.jsonBody.status === 'ok');
       check('accepted founder key even though it is not APP_ACCESS_KEY', result.statusCode === 200 && result.jsonBody.status === 'ok');
-      check('sent founder-key feedback to the sheet webhook', calls === 1);
+      check('sent owner/founder feedback to the sheet webhook', calls === 2);
     }
 
     console.log('\n3) normal active license works');
     {
       __resetForTests();
       process.env.APP_ACCESS_KEY = 'some_other_admin_key';
+      process.env.OWNER_LICENSE_KEYS = '';
       process.env.FOUNDER_LICENSE_KEYS = '';
       process.env.GOOGLE_SHEET_WEBHOOK_URL = 'https://example.test/feedback';
       const key = await svc.getOrCreateFreeLicense('feedback@example.com');
@@ -110,6 +116,7 @@ module.exports = async function run(){
     {
       __resetForTests();
       process.env.APP_ACCESS_KEY = 'admin_test_key';
+      process.env.OWNER_LICENSE_KEYS = '';
       process.env.FOUNDER_LICENSE_KEYS = 'test_founder_key';
       process.env.GOOGLE_SHEET_WEBHOOK_URL = 'https://example.test/feedback';
       let calls = 0;
@@ -127,6 +134,7 @@ module.exports = async function run(){
     {
       __resetForTests();
       process.env.APP_ACCESS_KEY = 'admin_test_key';
+      process.env.OWNER_LICENSE_KEYS = '';
       process.env.FOUNDER_LICENSE_KEYS = '';
       process.env.GOOGLE_SHEET_WEBHOOK_URL = 'https://example.test/feedback';
       global.fetch = async () => ({ ok: false });

@@ -141,21 +141,32 @@ module.exports = async function run(){
     check('20th recorded generation -> now blocked (limit reached)', nowBlocked.allowed === false && nowBlocked.reason === 'limit_reached');
   }
 
-  console.log('\n10) Founder keys: private full-access keys bypass payment and do not consume usage');
+  console.log('\n10) Founder/owner keys: private full-access keys bypass payment forever and do not consume usage');
   {
     __resetForTests();
+    const oldOwnerKeys = process.env.OWNER_LICENSE_KEYS;
     const oldFounderKeys = process.env.FOUNDER_LICENSE_KEYS;
+    process.env.OWNER_LICENSE_KEYS = 'test_owner_key';
     process.env.FOUNDER_LICENSE_KEYS = 'test_founder_key';
+
+    const ownerOf = await svc.checkEntitlement('test_owner_key', 'OF');
+    check('owner key can use any Pro protocol without a payment record', ownerOf.allowed === true && ownerOf.license.plan === 'pro' && ownerOf.license.founder === true);
 
     const founderBeida = await svc.checkEntitlement('test_founder_key', 'BEIDA');
     check('founder key can use Pro-only protocols', founderBeida.allowed === true && founderBeida.license.plan === 'pro' && founderBeida.license.founder === true);
 
-    await svc.recordUsage('test_founder_key');
-    check('founder usage is not tracked against monthly limits', (await licensing.getUsageCount('test_founder_key')) === 0);
+    for(let i = 0; i < 50; i++){
+      await svc.recordUsage('test_owner_key');
+      await svc.recordUsage('test_founder_key');
+    }
+    check('owner usage is never tracked against monthly limits', (await licensing.getUsageCount('test_owner_key')) === 0);
+    check('founder usage is never tracked against monthly limits', (await licensing.getUsageCount('test_founder_key')) === 0);
 
     const invalid = await svc.checkEntitlement('test_non_founder_key', 'BEIDA');
     check('nearby non-founder password is still rejected', invalid.allowed === false && invalid.reason === 'invalid_key');
 
+    if(oldOwnerKeys === undefined) delete process.env.OWNER_LICENSE_KEYS;
+    else process.env.OWNER_LICENSE_KEYS = oldOwnerKeys;
     if(oldFounderKeys === undefined) delete process.env.FOUNDER_LICENSE_KEYS;
     else process.env.FOUNDER_LICENSE_KEYS = oldFounderKeys;
   }

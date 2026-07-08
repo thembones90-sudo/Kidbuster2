@@ -95,14 +95,19 @@ export function generateLicenseKey(){
 }
 
 /**
- * Private owner/beta keys that should behave like Pro without a payment
- * provider. Kept in Vercel env, never in git.
+ * Private owner/beta keys that should behave like Pro forever without a
+ * payment provider. Kept in Vercel env, never in git. OWNER_LICENSE_KEYS
+ * is the preferred name; FOUNDER_LICENSE_KEYS is kept as a backwards-
+ * compatible alias because the live project already uses it.
  * @param {string} licenseKey
  * @returns {boolean}
  */
 export function isFounderLicenseKey(licenseKey){
   if(!licenseKey) return false;
-  const raw = process.env.FOUNDER_LICENSE_KEYS || '';
+  const raw = [
+    process.env.OWNER_LICENSE_KEYS || '',
+    process.env.FOUNDER_LICENSE_KEYS || ''
+  ].join(',');
   return raw
     .split(',')
     .map(key => key.trim())

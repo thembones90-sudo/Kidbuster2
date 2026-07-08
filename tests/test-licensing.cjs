@@ -81,13 +81,18 @@ module.exports = async function run(){
     check('different months produce different periods', licensing.currentUsagePeriod(new Date('2026-07-01T00:00:00Z')) !== licensing.currentUsagePeriod(new Date('2026-08-01T00:00:00Z')));
   }
 
-  console.log('\n4) isFounderLicenseKey: private env-listed full-access keys');
+  console.log('\n4) isFounderLicenseKey: private env-listed permanent full-access keys');
   {
+    const oldOwnerKeys = process.env.OWNER_LICENSE_KEYS;
     const oldFounderKeys = process.env.FOUNDER_LICENSE_KEYS;
+    process.env.OWNER_LICENSE_KEYS = 'test_owner_key';
     process.env.FOUNDER_LICENSE_KEYS = 'test_founder_key, kb_live_owner_key';
+    check('exact owner key is recognized', licensing.isFounderLicenseKey('test_owner_key') === true);
     check('exact founder key is recognized', licensing.isFounderLicenseKey('test_founder_key') === true);
     check('surrounding whitespace is ignored', licensing.isFounderLicenseKey('  kb_live_owner_key  ') === true);
     check('unknown key is not recognized', licensing.isFounderLicenseKey('test_non_founder_key') === false);
+    if(oldOwnerKeys === undefined) delete process.env.OWNER_LICENSE_KEYS;
+    else process.env.OWNER_LICENSE_KEYS = oldOwnerKeys;
     if(oldFounderKeys === undefined) delete process.env.FOUNDER_LICENSE_KEYS;
     else process.env.FOUNDER_LICENSE_KEYS = oldFounderKeys;
   }
