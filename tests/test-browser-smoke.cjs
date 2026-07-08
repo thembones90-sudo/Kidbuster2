@@ -78,6 +78,9 @@ module.exports = async function run(){
   page.on('pageerror', err => pageErrors.push(err.message));
 
   await page.goto(indexPath);
+  await page.evaluate(() => {
+    try{ localStorage.removeItem(ACCESS_KEY_STORAGE); }catch(e){ /* ignore */ }
+  });
   await new Promise(r => setTimeout(r, 150));
 
   console.log('\n1) Page loads with zero uncaught JavaScript errors');
@@ -127,11 +130,12 @@ module.exports = async function run(){
         title: document.querySelector('.license-modal-title').textContent,
         hasPro: !!document.getElementById('licenseModalProBtn'),
         hasFree: !!document.getElementById('licenseModalFreeBtn'),
-        hasKey: !!document.getElementById('licenseModalKeyBtn')
+        hasKey: !!document.getElementById('licenseModalKeyBtn'),
+        hasRecover: !!document.getElementById('licenseModalRecoverBtn')
       };
     });
     check('calling promptForAccessKey() shows the modal', modalShown.visible);
-    check('modal is now the prepared access page', modalShown.title === 'Access Pathfinder' && modalShown.hasPro && modalShown.hasFree && modalShown.hasKey);
+    check('modal is now the prepared access page', modalShown.title === 'Access Pathfinder' && modalShown.hasPro && modalShown.hasFree && modalShown.hasKey && modalShown.hasRecover);
 
     await page.click('#licenseModalProBtn');
     await new Promise(r => setTimeout(r, 80));
@@ -151,6 +155,14 @@ module.exports = async function run(){
       return { visible: err.style.display !== 'none', text: err.textContent };
     });
     check('empty email -> client-side validation error shown, no crash', emptyEmailError.visible && emptyEmailError.text.length > 0);
+
+    await page.click('#licenseModalRecoverBtn');
+    await new Promise(r => setTimeout(r, 80));
+    const emptyRecoverEmailError = await page.evaluate(() => {
+      const err = document.getElementById('licenseModalError');
+      return { visible: err.style.display !== 'none', text: err.textContent };
+    });
+    check('empty recover email -> client-side validation error shown, no crash', emptyRecoverEmailError.visible && emptyRecoverEmailError.text.includes('email'));
 
     // Pasting an existing key and clicking Continue should work entirely
     // client-side (no network call needed for this path at all) and
@@ -173,6 +185,20 @@ module.exports = async function run(){
     check('promptForAccessKey() resolves with the pasted key', afterPaste.resolvedKey === 'kb_live_test_pasted_key');
     check('modal hides itself after a successful entry', afterPaste.overlayHidden);
     check('the key is persisted to localStorage under ACCESS_KEY_STORAGE', afterPaste.stored === 'kb_live_test_pasted_key');
+
+    await page.click('#accountBtn');
+    await new Promise(r => setTimeout(r, 120));
+    const accountPanel = await page.evaluate(() => {
+      const panel = document.getElementById('accountPanel');
+      return {
+        visible: getComputedStyle(panel).display !== 'none',
+        keyText: document.getElementById('accountKey').textContent,
+        planText: document.getElementById('accountPlan').textContent
+      };
+    });
+    check('Access panel opens from the header', accountPanel.visible);
+    check('Access panel shows the saved key in masked form', accountPanel.keyText === 'kb_live_..._key');
+    check('Access panel renders a usable local/server status', accountPanel.planText.length > 0);
   }
 
   console.log('\n4) No new page errors accumulated from clicking through every protocol and the license modal');

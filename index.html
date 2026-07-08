@@ -253,6 +253,91 @@ body{
   display:inline-block;
   transition:background-color 0.45s ease, box-shadow 0.45s ease;
 }
+.header-actions{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.account-btn{
+  width:auto;
+  min-height:34px;
+  padding:8px 14px;
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+}
+.account-panel{
+  background:var(--surface);
+  border:1px solid var(--toxin-border);
+  border-radius:var(--radius);
+  padding:16px;
+  margin:-10px 0 20px;
+  box-shadow:inset 0 1px 0 rgba(var(--toxin-rgb),0.05), 0 0 22px -12px var(--toxin-glow);
+}
+.account-panel-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:14px;
+}
+.account-title{
+  font-family:var(--font-display);
+  font-size:16px;
+  margin:0 0 4px;
+}
+.account-summary{
+  color:var(--text-dim);
+  font-size:12px;
+  line-height:1.45;
+  margin:0;
+}
+.account-grid{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:10px;
+  margin-bottom:14px;
+}
+.account-metric{
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:12px;
+  min-width:0;
+  background:rgba(255,255,255,0.02);
+}
+.account-label{
+  color:var(--text-dim);
+  font-family:var(--font-mono);
+  font-size:10px;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  margin:0 0 6px;
+}
+.account-value{
+  color:var(--text);
+  font-size:13px;
+  line-height:1.35;
+  margin:0;
+  overflow-wrap:anywhere;
+}
+.account-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.account-actions .btn-secondary, .account-panel-head .btn-secondary{
+  width:auto;
+  padding:8px 14px;
+}
+@media (max-width:700px){
+  .header-actions{justify-content:flex-start;}
+  .account-grid{grid-template-columns:1fr;}
+  .account-panel-head{display:block;}
+  .account-panel-head .btn-secondary{margin-top:10px;}
+}
 
 .grid{
   display:grid;
@@ -1042,6 +1127,11 @@ body.protocol-beida .generate-btn.loading{
 .license-modal-actions.two{
   grid-template-columns:1fr 1fr;
 }
+.license-modal-recover{
+  border-top:1px solid var(--border);
+  margin-top:14px;
+  padding-top:14px;
+}
 @media (max-width:560px){
   .license-modal-actions.two{
     grid-template-columns:1fr;
@@ -1060,7 +1150,38 @@ body.protocol-beida .generate-btn.loading{
         <h1 class="title"><span class="mode-badge" id="protocolBadge">Classic</span></h1>
       </div>
     </div>
-    <div class="status-dot"><span class="dot"></span>LOCAL MODE · NO STORAGE</div>
+    <div class="header-actions">
+      <button class="btn-secondary account-btn" id="accountBtn" type="button">Access</button>
+      <div class="status-dot"><span class="dot"></span>LOCAL MODE · NO STORAGE</div>
+    </div>
+  </div>
+
+  <div class="account-panel" id="accountPanel" style="display:none;">
+    <div class="account-panel-head">
+      <div>
+        <p class="account-title">Access status</p>
+        <p class="account-summary" id="accountSummary">No key checked yet.</p>
+      </div>
+      <button class="btn-secondary" id="accountRefreshBtn" type="button">Refresh</button>
+    </div>
+    <div class="account-grid">
+      <div class="account-metric">
+        <p class="account-label">Plan</p>
+        <p class="account-value" id="accountPlan">Not signed in</p>
+      </div>
+      <div class="account-metric">
+        <p class="account-label">Usage</p>
+        <p class="account-value" id="accountUsage">-</p>
+      </div>
+      <div class="account-metric">
+        <p class="account-label">Saved key</p>
+        <p class="account-value" id="accountKey">None</p>
+      </div>
+    </div>
+    <div class="account-actions">
+      <button class="btn-secondary" id="accountChangeKeyBtn" type="button">Change key</button>
+      <button class="btn-secondary" id="accountUpgradeBtn" type="button">Upgrade to Pro</button>
+    </div>
   </div>
 
   <div class="grid">
@@ -1207,6 +1328,11 @@ body.protocol-beida .generate-btn.loading{
         <label class="field-label" for="licenseModalKeyInput">License key</label>
         <input type="text" id="licenseModalKeyInput" placeholder="kb_live_...">
         <button class="btn-secondary" id="licenseModalKeyBtn" style="margin-top:10px; width:100%;">Continue</button>
+        <div class="license-modal-recover">
+          <label class="field-label" for="licenseModalRecoverEmail">Lost key?</label>
+          <input type="email" id="licenseModalRecoverEmail" placeholder="your@email.com">
+          <button class="btn-secondary" id="licenseModalRecoverBtn" style="margin-top:10px; width:100%;"><span id="licenseModalRecoverBtnLabel">Recover key</span></button>
+        </div>
       </div>
     </div>
 
@@ -3432,6 +3558,68 @@ function getStoredAccessKey(){
   try{ return localStorage.getItem(ACCESS_KEY_STORAGE); }catch(e){ return null; }
 }
 
+function maskAccessKey(key){
+  if(!key) return 'None';
+  if(key.length <= 12) return key;
+  return key.slice(0, 8) + '...' + key.slice(-4);
+}
+
+function getAccountEls(){
+  return {
+    btn: document.getElementById('accountBtn'),
+    panel: document.getElementById('accountPanel'),
+    summary: document.getElementById('accountSummary'),
+    plan: document.getElementById('accountPlan'),
+    usage: document.getElementById('accountUsage'),
+    key: document.getElementById('accountKey'),
+    refreshBtn: document.getElementById('accountRefreshBtn'),
+    changeKeyBtn: document.getElementById('accountChangeKeyBtn'),
+    upgradeBtn: document.getElementById('accountUpgradeBtn')
+  };
+}
+
+function updateAccountSnapshot(summary, plan, usage, keyLabel, canUpgrade){
+  const els = getAccountEls();
+  if(!els.panel) return;
+  els.summary.textContent = summary;
+  els.plan.textContent = plan;
+  els.usage.textContent = usage;
+  els.key.textContent = keyLabel;
+  if(els.btn) els.btn.textContent = plan === 'Not signed in' ? 'Access' : plan;
+  if(els.upgradeBtn) els.upgradeBtn.style.display = canUpgrade ? '' : 'none';
+}
+
+async function refreshAccountPanel(){
+  const key = getStoredAccessKey();
+  if(!key){
+    updateAccountSnapshot('No access key is saved in this browser yet.', 'Not signed in', '-', 'None', false);
+    return;
+  }
+
+  updateAccountSnapshot('Checking this saved key...', 'Checking', '-', maskAccessKey(key), true);
+  try{
+    const res = await fetch('/api/license-status', {
+      method: 'GET',
+      headers: { 'x-app-key': key }
+    });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){
+      updateAccountSnapshot(data.error || 'This saved key was not accepted.', 'Needs attention', '-', maskAccessKey(key), false);
+      return;
+    }
+
+    const isPro = data.plan === 'pro';
+    const planLabel = data.founder ? 'Owner Pro' : (isPro ? 'Pro' : 'Free');
+    const usageLabel = isPro
+      ? 'Unlimited'
+      : String(data.remainingFreeReports) + ' of ' + data.freeMonthlyLimit + ' free reports left';
+    const emailNote = data.email ? 'Signed in as ' + data.email + '.' : 'Saved key is active.';
+    updateAccountSnapshot(emailNote, planLabel, usageLabel, maskAccessKey(key), !isPro);
+  }catch(e){
+    updateAccountSnapshot('Saved key found. Status check needs the live app server.', 'Saved key', 'Unable to refresh', maskAccessKey(key), true);
+  }
+}
+
 // Shows the license modal and resolves once the teacher has either
 // gotten a Free key or entered an existing one — used the first time the
 // app tries to generate with no stored key, replacing what used to be a
@@ -3447,6 +3635,9 @@ function promptForAccessKey(){
     const freeBtn = document.getElementById('licenseModalFreeBtn');
     const freeBtnLabel = document.getElementById('licenseModalFreeBtnLabel');
     const keyBtn = document.getElementById('licenseModalKeyBtn');
+    const recoverEmailInput = document.getElementById('licenseModalRecoverEmail');
+    const recoverBtn = document.getElementById('licenseModalRecoverBtn');
+    const recoverBtnLabel = document.getElementById('licenseModalRecoverBtnLabel');
     const errorEl = document.getElementById('licenseModalError');
 
     function showError(msg){
@@ -3460,6 +3651,8 @@ function promptForAccessKey(){
       proBtn.removeEventListener('click', onProClick);
       freeBtn.removeEventListener('click', onFreeClick);
       keyBtn.removeEventListener('click', onKeyClick);
+      recoverBtn.removeEventListener('click', onRecoverClick);
+      refreshAccountPanel();
       resolve(key);
     }
 
@@ -3524,18 +3717,49 @@ function promptForAccessKey(){
       finish(key);
     }
 
+    async function onRecoverClick(){
+      const email = recoverEmailInput.value.trim();
+      if(!email){ showError('Please enter the email connected to your key.'); return; }
+      errorEl.style.display = 'none';
+      recoverBtn.disabled = true;
+      recoverBtnLabel.textContent = 'Recovering...';
+      try{
+        const res = await fetch('/api/license-recover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json().catch(() => ({}));
+        if(!res.ok || !data.licenseKey){
+          showError(data.error || 'Could not recover a key for that email.');
+          recoverBtn.disabled = false;
+          recoverBtnLabel.textContent = 'Recover key';
+          return;
+        }
+        finish(data.licenseKey);
+      }catch(e){
+        showError('Network error - check your connection and try again.');
+        recoverBtn.disabled = false;
+        recoverBtnLabel.textContent = 'Recover key';
+      }
+    }
+
     errorEl.style.display = 'none';
     emailInput.value = '';
     proEmailInput.value = '';
     keyInput.value = '';
+    recoverEmailInput.value = '';
     proBtn.disabled = false;
     proBtnLabel.textContent = 'Continue to Pro';
     freeBtn.disabled = false;
     freeBtnLabel.textContent = 'Get my free key';
+    recoverBtn.disabled = false;
+    recoverBtnLabel.textContent = 'Recover key';
     overlay.style.display = 'flex';
     proBtn.addEventListener('click', onProClick);
     freeBtn.addEventListener('click', onFreeClick);
     keyBtn.addEventListener('click', onKeyClick);
+    recoverBtn.addEventListener('click', onRecoverClick);
   });
 }
 
@@ -3571,6 +3795,7 @@ async function callClaude(systemPrompt, userMessage, protocol){
 
     if(response.status === 401){
       try{ localStorage.removeItem(ACCESS_KEY_STORAGE); }catch(e){ /* storage unavailable */ }
+      refreshAccountPanel();
       throw new Error((detail || 'License key was rejected.') + ' Reload the page to enter a valid one.');
     }
     if(response.status === 402){
@@ -3977,6 +4202,7 @@ outputBox.addEventListener('click', (e) => {
   }
   if(e.target && e.target.id === 'inlineChangeKeyBtn'){
     try{ localStorage.removeItem(ACCESS_KEY_STORAGE); }catch(err){ /* storage unavailable */ }
+    refreshAccountPanel();
     promptForAccessKey().then(() => {
       outputBox.className = 'output-box empty';
       outputBox.textContent = 'Key saved. Try Generate feedback again.';
@@ -3985,11 +4211,34 @@ outputBox.addEventListener('click', (e) => {
 });
 
 
-// Shared by both "New Student" and "Clear" — resets the workspace to a
-// blank slate. The only difference between the two buttons is *when* each
-// is enabled: Clear is always available (abandon what you're typing);
-// New Student only enables once a report exists (confirm you're done with
-// this student and move to the next one).
+// Header access panel wiring.
+const accountEls = getAccountEls();
+if(accountEls.btn){
+  accountEls.btn.addEventListener('click', () => {
+    const isOpen = accountEls.panel.style.display !== 'none';
+    accountEls.panel.style.display = isOpen ? 'none' : '';
+    if(!isOpen) refreshAccountPanel();
+  });
+}
+if(accountEls.refreshBtn){
+  accountEls.refreshBtn.addEventListener('click', refreshAccountPanel);
+}
+if(accountEls.changeKeyBtn){
+  accountEls.changeKeyBtn.addEventListener('click', () => {
+    try{ localStorage.removeItem(ACCESS_KEY_STORAGE); }catch(err){ /* storage unavailable */ }
+    refreshAccountPanel();
+    promptForAccessKey();
+  });
+}
+if(accountEls.upgradeBtn){
+  accountEls.upgradeBtn.addEventListener('click', startProUpgrade);
+}
+refreshAccountPanel();
+
+// Shared by both "New Student" and "Clear" - resets the workspace to a
+// blank slate. The only difference between the two buttons is when each
+// is enabled: Clear is always available; New Student only enables once a
+// report exists.
 function resetWorkspace(){
   generateClicksSinceReset = 0; // marks a new lesson boundary for regeneration tracking
   hideFeedbackCard();
