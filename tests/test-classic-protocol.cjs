@@ -59,7 +59,7 @@ module.exports = function run(){
     if(warnings.length){ console.log('    (unexpected warnings:', warnings, ')'); }
   }
 
-  console.log('\n2) Star rule: ratings above 3 need exactly 10; ratings 1 through 3 get none');
+  console.log('\n2) Star rule: ratings 3 and above need exactly 10; ratings below 3 get none');
   {
     const nineStars = KidbusterCore.analyzeMAOutput(baseReport({ stars: '⭐⭐⭐⭐⭐⭐⭐⭐⭐' }), '4', 'Layne');
     check('9 stars -> flagged', nineStars.some(w => w.includes('Star count is 9')));
@@ -70,19 +70,31 @@ module.exports = function run(){
     const tenStars = KidbusterCore.analyzeMAOutput(baseReport({ stars: '⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐' }), '4', 'Layne');
     check('exactly 10 stars -> not flagged', !tenStars.some(w => w.includes('Star count')));
 
-    const lowPrompt = KidbusterCore.buildMASystemPrompt({ rating: '3', lengthFormat: 'long' });
-    check('rating 3 prompt tells the model to omit Total Stars Today', lowPrompt.includes('OMIT the entire Total Stars Today section'));
+    const tenStarsAtThree = KidbusterCore.analyzeMAOutput(baseReport({ parentNote: false }), '3', 'Layne');
+    check('rating 3 with exactly 10 stars -> not flagged', !tenStarsAtThree.some(w => w.toLowerCase().includes('star')));
+
+    const sweetTenStarsAtThree = KidbusterCore.PROTOCOLS.MS.analyze(baseReport({ parentNote: false }), '3', 'Layne');
+    check('Sugarcoat rating 3 with exactly 10 stars -> not flagged', !sweetTenStarsAtThree.some(w => w.toLowerCase().includes('star')));
+
+    const lowPrompt = KidbusterCore.buildMASystemPrompt({ rating: '2.5', lengthFormat: 'long' });
+    check('rating 2.5 prompt tells the model to omit Total Stars Today', lowPrompt.includes('OMIT the entire Total Stars Today section'));
+
+    const threePrompt = KidbusterCore.buildMASystemPrompt({ rating: '3', lengthFormat: 'long' });
+    check('rating 3 prompt tells the model to include exactly 10 stars', threePrompt.includes('INCLUDE it with exactly 10 star emojis'));
 
     const highPrompt = KidbusterCore.buildMASystemPrompt({ rating: '4', lengthFormat: 'long' });
     check('rating 4 prompt tells the model to include exactly 10 stars', highPrompt.includes('INCLUDE it with exactly 10 star emojis'));
 
-    const lowSweetPrompt = KidbusterCore.PROTOCOLS.MS.buildSystemPrompt({ rating: '3', lengthFormat: 'long' });
-    check('Sugarcoat rating 3 prompt also tells the model to omit stars', lowSweetPrompt.includes('OMIT the entire Total Stars Today section'));
+    const lowSweetPrompt = KidbusterCore.PROTOCOLS.MS.buildSystemPrompt({ rating: '2.5', lengthFormat: 'long' });
+    check('Sugarcoat rating 2.5 prompt also tells the model to omit stars', lowSweetPrompt.includes('OMIT the entire Total Stars Today section'));
+
+    const threeSweetPrompt = KidbusterCore.PROTOCOLS.MS.buildSystemPrompt({ rating: '3', lengthFormat: 'long' });
+    check('Sugarcoat rating 3 prompt also tells the model to include exactly 10 stars', threeSweetPrompt.includes('INCLUDE it with exactly 10 star emojis'));
 
     const highSweetPrompt = KidbusterCore.PROTOCOLS.MS.buildSystemPrompt({ rating: '4', lengthFormat: 'long' });
     check('Sugarcoat rating 4 prompt also tells the model to include exactly 10 stars', highSweetPrompt.includes('INCLUDE it with exactly 10 star emojis'));
 
-    ['1', '1.5', '2', '2.5', '3'].forEach(lvl => {
+    ['1', '1.5', '2', '2.5'].forEach(lvl => {
       const noStars = KidbusterCore.analyzeMAOutput(baseReport({ stars: null, parentNote: ['1', '1.5', '2', '2.5'].includes(lvl) }), lvl, 'Layne');
       check('rating ' + lvl + ' with no stars -> not flagged for stars', !noStars.some(w => w.toLowerCase().includes('star')));
 
