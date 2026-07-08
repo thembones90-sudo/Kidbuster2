@@ -57,7 +57,7 @@ stale, hand-copied logic instead of the real thing.
 
 | File | Covers |
 |---|---|
-| `test-classic-protocol.cjs` | MA/Classic's foundational checks: exact 10-star count (scoped to "Total Stars Today" only), Parent Note gating by rating, exactly-one Superpower emoji, exactly-one homework mission, empty-Grammar-Points detection, forbidden formatting, exact sign-off |
+| `test-classic-protocol.cjs` | MA/Classic's foundational checks: ratings 1-3 omit stars while ratings above 3 require exactly 10, the same star rule is enforced for Sugarcoat, Parent Note gating by rating, exactly-one Superpower emoji, exactly-one homework mission, empty-Grammar-Points detection, forbidden formatting, exact sign-off |
 | `test-length-format.cjs` | Short/Medium/Long length tiers (MA/Sugarcoat): correct char targets, token substitution, validator enforcement per tier, backward-compatible default |
 | `test-trim-rule.cjs` | The mandatory Short-tier content trim rule (omit Pronunciation Focus, cap grammar points/examples, drop per-word pronunciation) and its validator checks |
 | `test-of-protocol.cjs` | OF's foundational checks: 3 required sections present and in order, independent 1300-char limits on Strengths/Areas for Improvement, 180-300 word range, qualitative-tier-leak guard, its generic "Cheers" (no-emoji) sign-off |
