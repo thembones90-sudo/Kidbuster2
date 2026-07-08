@@ -91,7 +91,7 @@ module.exports = async function run(){
   const protocols = [
     { value: 'MA',    bodyClass: null, label: 'Classic' }, // MA is the default theme — no body class of its own
     { value: 'MS',    bodyClass: 'protocol-ms', label: 'Sugarcoat' },
-    { value: 'BLITZ', bodyClass: 'protocol-blitz', label: 'Blitz' },
+    { value: 'BLITZ', bodyClass: 'protocol-blitz', label: 'Blitz ⚡' },
     { value: 'BEIDA', bodyClass: 'protocol-beida', label: 'Beida' },
     { value: 'OF',    bodyClass: 'protocol-of', label: 'OF Protocol (Trial Evaluation)' }
   ];

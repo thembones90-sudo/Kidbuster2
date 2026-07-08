@@ -10,7 +10,7 @@ module.exports = function run(){
 
   console.log('\n1) Blitz is registered correctly in PROTOCOLS');
   check('PROTOCOLS.BLITZ exists', !!KidbusterCore.PROTOCOLS.BLITZ);
-  check('PROTOCOLS.BLITZ.label is "Blitz"', KidbusterCore.PROTOCOLS.BLITZ.label === 'Blitz');
+  check('PROTOCOLS.BLITZ.label is "Blitz ⚡"', KidbusterCore.PROTOCOLS.BLITZ.label === 'Blitz ⚡');
   check('PROTOCOLS.BLITZ.models has 10 entries', KidbusterCore.PROTOCOLS.BLITZ.models.length === 10);
   check('BLITZ_MODEL_POOL exported directly has 10 entries', KidbusterCore.BLITZ_MODEL_POOL.length === 10);
 
