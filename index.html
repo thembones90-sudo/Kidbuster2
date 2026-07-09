@@ -3565,18 +3565,34 @@ function readFormState(){
 // It exists only so the wait feels like KIDBUSTER executing a protocol
 // rather than the UI silently freezing. No fake progress bar, no timers
 // tied to actual milestones — just a short, honest-feeling text cycle.
-const GENERATION_STATUS_MESSAGES = [
+const DEFAULT_GENERATION_STATUS_MESSAGES = [
   '📡 Acquiring classroom intelligence...',
   '🧪 Isolating key information...',
   '🧠 Devising the optimal approach...',
   '⚗ Refining the final report...',
   '🛡 Eliminating inconsistencies...'
 ];
+const CLASSIC_GENERATION_STATUS_MESSAGES = [
+  '🥷 Infiltrating the classroom...',
+  '👜 Pickpocketing the lesson evidence...',
+  '💎 Inspecting the loot...',
+  '📜 Forging the final document...',
+  '🧹 Erasing unnecessary fluff...'
+];
 // Shown once, only when generation actually succeeds — never part of the
 // cycling loop above, so it can't appear mid-request or loop back around
 // to "Acquiring..." on a slow response, which would be misleading.
-const GENERATION_COMPLETE_MESSAGE = '✔ Protocol complete.';
+const DEFAULT_GENERATION_COMPLETE_MESSAGE = '✔ Protocol complete.';
+const CLASSIC_GENERATION_COMPLETE_MESSAGE = '✔ MISSION PASSED — RESPECT ++';
 let statusCycleTimer = null;
+
+function generationStatusMessagesFor(protocolKey){
+  return protocolKey === 'MA' ? CLASSIC_GENERATION_STATUS_MESSAGES : DEFAULT_GENERATION_STATUS_MESSAGES;
+}
+
+function generationCompleteMessageFor(protocolKey){
+  return protocolKey === 'MA' ? CLASSIC_GENERATION_COMPLETE_MESSAGE : DEFAULT_GENERATION_COMPLETE_MESSAGE;
+}
 
 // Swaps the status label text with a brief fade/slide transition.
 // Cosmetic only — no timing here reflects real backend progress.
@@ -3592,10 +3608,11 @@ function setLoading(loading){
   generateBtn.classList.toggle('loading', loading);
   if(loading){
     let i = 0;
-    setStatusText(GENERATION_STATUS_MESSAGES[0]);
+    const statusMessages = generationStatusMessagesFor(currentProtocolKey());
+    setStatusText(statusMessages[0]);
     statusCycleTimer = setInterval(() => {
-      i = (i + 1) % GENERATION_STATUS_MESSAGES.length;
-      setStatusText(GENERATION_STATUS_MESSAGES[i]);
+      i = (i + 1) % statusMessages.length;
+      setStatusText(statusMessages[i]);
     }, 900);
   }else{
     if(statusCycleTimer){ clearInterval(statusCycleTimer); statusCycleTimer = null; }
@@ -4225,7 +4242,7 @@ async function generate(){
     // Protocol genuinely finished — show the completion message once, then
     // hold it briefly so it's actually readable before the button resets.
     if(statusCycleTimer){ clearInterval(statusCycleTimer); statusCycleTimer = null; }
-    setStatusText(GENERATION_COMPLETE_MESSAGE);
+    setStatusText(generationCompleteMessageFor(form.protocol));
     await new Promise(resolve => setTimeout(resolve, 700));
   }catch(err){
     const durationMs = Math.round(performance.now() - generationStartedAt);
