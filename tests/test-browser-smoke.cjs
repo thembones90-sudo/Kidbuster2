@@ -134,9 +134,11 @@ module.exports = async function run(){
       classic: generationStatusMessagesFor('MA'),
       sugarcoat: generationStatusMessagesFor('MS'),
       blitz: generationStatusMessagesFor('BLITZ'),
+      beida: generationStatusMessagesFor('BEIDA'),
       classicComplete: generationCompleteMessageFor('MA'),
       sugarcoatComplete: generationCompleteMessageFor('MS'),
-      blitzComplete: generationCompleteMessageFor('BLITZ')
+      blitzComplete: generationCompleteMessageFor('BLITZ'),
+      beidaComplete: generationCompleteMessageFor('BEIDA')
     }));
     check('Classic loading copy starts with the rogue/heist line', statusCopy.classic[0] === '🥷 Infiltrating the classroom...');
     check('Classic loading copy includes the final fluff-cleanup line', statusCopy.classic.includes('🧹 Erasing unnecessary fluff...'));
@@ -144,8 +146,13 @@ module.exports = async function run(){
     check('Sugarcoat loading copy starts with the confectionery line', statusCopy.sugarcoat[0] === '🍭 Entering Sugarcoat mode...');
     check('Sugarcoat loading copy includes the final sprinkle line', statusCopy.sugarcoat.includes('🧁 Adding the final sprinkle...'));
     check('Sugarcoat success copy uses the sweet report wording', statusCopy.sugarcoatComplete === '✔ SWEET REPORT READY — KINDNESS ++');
-    check('Blitz keeps the default loading copy', statusCopy.blitz[0] === '📡 Acquiring classroom intelligence...');
-    check('Blitz keeps the default success copy', statusCopy.blitzComplete === '✔ Protocol complete.');
+    check('Blitz loading copy uses the 20-message randomized pool', statusCopy.blitz.length === 20);
+    check('Blitz loading copy has no repeats before the pool is exhausted', new Set(statusCopy.blitz).size === 20);
+    check('Blitz loading copy includes the professional panic line', statusCopy.blitz.includes('⚡ Panicking professionally...'));
+    check('Blitz loading copy includes the record-speed cleanup line', statusCopy.blitz.includes('🧹 Cleaning up the evidence at record speed.'));
+    check('Blitz success copy uses the style wording', statusCopy.blitzComplete === '✔ BLITZ COMPLETE — STYLE ++');
+    check('Beida keeps the default loading copy', statusCopy.beida[0] === '📡 Acquiring classroom intelligence...');
+    check('Beida keeps the default success copy', statusCopy.beidaComplete === '✔ Protocol complete.');
   }
 
   console.log('\n4) License modal: shows Pro/Free/existing-key paths, validates client-side, stores a pasted key without needing a live backend');

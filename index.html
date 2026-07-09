@@ -3586,23 +3586,57 @@ const SUGARCOAT_GENERATION_STATUS_MESSAGES = [
   '✨ Polishing warmth and clarity...',
   '🧁 Adding the final sprinkle...'
 ];
+const BLITZ_GENERATION_STATUS_MESSAGE_POOL = [
+  '⚡ Panicking professionally...',
+  '🏃 Stealing the shortest route...',
+  '🎯 Pretending this was the plan...',
+  '📝 Making it sound intentional...',
+  '💨 Escaping before anyone notices...',
+  '⚡ Speed is a feature, apparently...',
+  '🧠 Thinking at irresponsible speeds...',
+  '🧯 Ignoring several safety protocols...',
+  '🎲 Trusting the algorithm. Bold move.',
+  '☕ Running entirely on caffeine...',
+  '🦆 Looking calm. Internally screaming.',
+  '🏃 Any faster and we\'d violate physics.',
+  '🧩 Assembling coherent thoughts somehow...',
+  '📦 Delivering before common sense objects.',
+  '🔥 Mild chaos detected. Proceeding anyway.',
+  '🙃 This is probably fine...',
+  '🚀 Maximum velocity. Minimum dignity.',
+  '⏱ Deadlines make excellent motivation.',
+  '🤷 If it works, it was intentional.',
+  '🧹 Cleaning up the evidence at record speed.'
+];
 // Shown once, only when generation actually succeeds — never part of the
 // cycling loop above, so it can't appear mid-request or loop back around
 // to "Acquiring..." on a slow response, which would be misleading.
 const DEFAULT_GENERATION_COMPLETE_MESSAGE = '✔ Protocol complete.';
 const CLASSIC_GENERATION_COMPLETE_MESSAGE = '✔ MISSION PASSED — RESPECT ++';
 const SUGARCOAT_GENERATION_COMPLETE_MESSAGE = '✔ SWEET REPORT READY — KINDNESS ++';
+const BLITZ_GENERATION_COMPLETE_MESSAGE = '✔ BLITZ COMPLETE — STYLE ++';
 let statusCycleTimer = null;
+
+function shuffledCopy(items){
+  const shuffled = items.slice();
+  for(let i = shuffled.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 function generationStatusMessagesFor(protocolKey){
   if(protocolKey === 'MA') return CLASSIC_GENERATION_STATUS_MESSAGES;
   if(protocolKey === 'MS') return SUGARCOAT_GENERATION_STATUS_MESSAGES;
+  if(protocolKey === 'BLITZ') return shuffledCopy(BLITZ_GENERATION_STATUS_MESSAGE_POOL);
   return DEFAULT_GENERATION_STATUS_MESSAGES;
 }
 
 function generationCompleteMessageFor(protocolKey){
   if(protocolKey === 'MA') return CLASSIC_GENERATION_COMPLETE_MESSAGE;
   if(protocolKey === 'MS') return SUGARCOAT_GENERATION_COMPLETE_MESSAGE;
+  if(protocolKey === 'BLITZ') return BLITZ_GENERATION_COMPLETE_MESSAGE;
   return DEFAULT_GENERATION_COMPLETE_MESSAGE;
 }
 
