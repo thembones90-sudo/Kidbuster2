@@ -91,7 +91,7 @@ module.exports = async function run(){
   const protocols = [
     { value: 'MA',    bodyClass: null, label: 'Classic' }, // MA is the default theme — no body class of its own
     { value: 'MS',    bodyClass: 'protocol-ms', label: 'Sugarcoat' },
-    { value: 'BLITZ', bodyClass: 'protocol-blitz', label: 'Blitz ⚡' },
+    { value: 'BLITZ', bodyClass: 'protocol-blitz', label: 'BLITZ', hasBolt: true },
     { value: 'BEIDA', bodyClass: 'protocol-beida', label: 'Beida' },
     { value: 'OF',    bodyClass: 'protocol-of', label: 'OF Protocol (Trial Evaluation)' }
   ];
@@ -106,7 +106,8 @@ module.exports = async function run(){
       return {
         bodyClassList: Array.from(document.body.classList),
         background: getComputedStyle(btn).backgroundImage,
-        badgeText: document.getElementById('protocolBadge').textContent
+        badgeText: document.getElementById('protocolBadge').textContent,
+        hasBolt: Boolean(document.querySelector('#protocolBadge .blitz-bolt'))
       };
     });
 
@@ -116,6 +117,9 @@ module.exports = async function run(){
       check(proto.value + ': body has no protocol-specific class (uses the default theme)', result.bodyClassList.every(c => !c.startsWith('protocol-')));
     }
     check(proto.value + ': header badge text updates to match ("' + proto.label + '")', result.badgeText === proto.label);
+    if(proto.hasBolt){
+      check(proto.value + ': header badge includes the Blitz bolt image', result.hasBolt);
+    }
     check(proto.value + ": Generate button's own background is a genuinely distinct gradient, not stuck on another theme's", !seenBackgrounds.has(result.background));
     seenBackgrounds.add(result.background);
   }

@@ -991,6 +991,19 @@ body.protocol-beida .generate-btn.loading{
   vertical-align:middle;
   transition:background-color 0.45s ease, color 0.45s ease, border-color 0.45s ease;
 }
+.blitz-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.blitz-bolt{
+  height:16px;
+  width:auto;
+  display:inline-block;
+  object-fit:contain;
+  pointer-events:none;
+  filter:drop-shadow(0 0 4px rgba(212,255,92,0.75));
+}
 
 .lint-box{
   margin-top:14px;
@@ -4381,8 +4394,21 @@ document.getElementById('protocolSelect').addEventListener('click', (e) => {
   if(e.target.classList.contains('info-icon')) e.preventDefault();
 });
 
+function setProtocolBadge(protocolKey){
+  const badge = document.getElementById('protocolBadge');
+  const protocol = KidbusterCore.PROTOCOLS[protocolKey] || KidbusterCore.PROTOCOLS.MA;
+  if(!badge || !protocol) return;
+  if(protocolKey === 'BLITZ'){
+    badge.classList.add('blitz-badge');
+    badge.innerHTML = '<span>BLITZ</span><img src="/assets/blitz-bolt.png" alt="" class="blitz-bolt" aria-hidden="true">';
+    return;
+  }
+  badge.classList.remove('blitz-badge');
+  badge.textContent = protocol.label;
+}
+
 document.getElementById('protocolSelect').addEventListener('change', (e) => {
-  document.getElementById('protocolBadge').textContent = KidbusterCore.PROTOCOLS[e.target.value].label;
+  setProtocolBadge(e.target.value);
   buildRatingTrack();
 });
 
@@ -4705,7 +4731,7 @@ function restoreDraft(){
     const protocolRadio = document.querySelector('input[name="protocol"][value="' + draft.protocol + '"]');
     if(protocolRadio){
       protocolRadio.checked = true;
-      document.getElementById('protocolBadge').textContent = KidbusterCore.PROTOCOLS[draft.protocol].label;
+      setProtocolBadge(draft.protocol);
       buildRatingTrack(); // rebuild with the correct button set before restoring the rating below
     }
   }
