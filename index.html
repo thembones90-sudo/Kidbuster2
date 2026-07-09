@@ -1170,6 +1170,10 @@ body.protocol-beida .generate-btn.loading{
         <p class="account-value" id="accountPlan">Not signed in</p>
       </div>
       <div class="account-metric">
+        <p class="account-label">Status</p>
+        <p class="account-value" id="accountStatus">No key</p>
+      </div>
+      <div class="account-metric">
         <p class="account-label">Usage</p>
         <p class="account-value" id="accountUsage">-</p>
       </div>
@@ -1330,8 +1334,9 @@ body.protocol-beida .generate-btn.loading{
         <button class="btn-secondary" id="licenseModalKeyBtn" style="margin-top:10px; width:100%;">Continue</button>
         <div class="license-modal-recover">
           <label class="field-label" for="licenseModalRecoverEmail">Lost key?</label>
+          <p class="license-modal-plan-note">Enter the email used for Free or Pro and this browser will use that key again.</p>
           <input type="email" id="licenseModalRecoverEmail" placeholder="your@email.com">
-          <button class="btn-secondary" id="licenseModalRecoverBtn" style="margin-top:10px; width:100%;"><span id="licenseModalRecoverBtnLabel">Recover key</span></button>
+          <button class="btn-secondary" id="licenseModalRecoverBtn" style="margin-top:10px; width:100%;"><span id="licenseModalRecoverBtnLabel">Recover and use key</span></button>
         </div>
       </div>
     </div>
@@ -3603,6 +3608,7 @@ function getAccountEls(){
     panel: document.getElementById('accountPanel'),
     summary: document.getElementById('accountSummary'),
     plan: document.getElementById('accountPlan'),
+    status: document.getElementById('accountStatus'),
     usage: document.getElementById('accountUsage'),
     key: document.getElementById('accountKey'),
     refreshBtn: document.getElementById('accountRefreshBtn'),
@@ -3611,11 +3617,17 @@ function getAccountEls(){
   };
 }
 
-function updateAccountSnapshot(summary, plan, usage, keyLabel, canUpgrade){
+function formatAccountStatus(status){
+  if(!status) return 'Unknown';
+  return String(status).replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase());
+}
+
+function updateAccountSnapshot(summary, plan, status, usage, keyLabel, canUpgrade){
   const els = getAccountEls();
   if(!els.panel) return;
   els.summary.textContent = summary;
   els.plan.textContent = plan;
+  if(els.status) els.status.textContent = status;
   els.usage.textContent = usage;
   els.key.textContent = keyLabel;
   if(els.btn) els.btn.textContent = plan === 'Not signed in' ? 'Access' : plan;
@@ -3625,11 +3637,11 @@ function updateAccountSnapshot(summary, plan, usage, keyLabel, canUpgrade){
 async function refreshAccountPanel(){
   const key = getStoredAccessKey();
   if(!key){
-    updateAccountSnapshot('No access key is saved in this browser yet.', 'Not signed in', '-', 'None', false);
+    updateAccountSnapshot('No access key is saved in this browser yet.', 'Not signed in', 'No key', '-', 'None', false);
     return;
   }
 
-  updateAccountSnapshot('Checking this saved key...', 'Checking', '-', maskAccessKey(key), true);
+  updateAccountSnapshot('Checking this saved key...', 'Checking', 'Checking', '-', maskAccessKey(key), true);
   try{
     const res = await fetch('/api/license-status', {
       method: 'GET',
@@ -3637,19 +3649,20 @@ async function refreshAccountPanel(){
     });
     const data = await res.json().catch(() => ({}));
     if(!res.ok){
-      updateAccountSnapshot(data.error || 'This saved key was not accepted.', 'Needs attention', '-', maskAccessKey(key), false);
+      updateAccountSnapshot(data.error || 'This saved key was not accepted.', 'Needs attention', 'Invalid', '-', maskAccessKey(key), false);
       return;
     }
 
     const isPro = data.plan === 'pro';
     const planLabel = data.founder ? 'Owner Pro' : (isPro ? 'Pro' : 'Free');
+    const statusLabel = data.founder ? 'Full access forever' : formatAccountStatus(data.status || 'active');
     const usageLabel = isPro
       ? 'Unlimited'
-      : String(data.remainingFreeReports) + ' of ' + data.freeMonthlyLimit + ' free reports left';
+      : String(data.usageCount || 0) + ' used - ' + String(data.remainingFreeReports) + ' left this month';
     const emailNote = data.email ? 'Signed in as ' + data.email + '.' : 'Saved key is active.';
-    updateAccountSnapshot(emailNote, planLabel, usageLabel, maskAccessKey(key), !isPro);
+    updateAccountSnapshot(emailNote, planLabel, statusLabel, usageLabel, maskAccessKey(key), !isPro);
   }catch(e){
-    updateAccountSnapshot('Saved key found. Status check needs the live app server.', 'Saved key', 'Unable to refresh', maskAccessKey(key), true);
+    updateAccountSnapshot('Saved key found. Status check needs the live app server.', 'Saved key', 'Unknown', 'Unable to refresh', maskAccessKey(key), true);
   }
 }
 
@@ -3766,14 +3779,14 @@ function promptForAccessKey(){
         if(!res.ok || !data.licenseKey){
           showError(data.error || 'Could not recover a key for that email.');
           recoverBtn.disabled = false;
-          recoverBtnLabel.textContent = 'Recover key';
+          recoverBtnLabel.textContent = 'Recover and use key';
           return;
         }
         finish(data.licenseKey);
       }catch(e){
         showError('Network error - check your connection and try again.');
         recoverBtn.disabled = false;
-        recoverBtnLabel.textContent = 'Recover key';
+        recoverBtnLabel.textContent = 'Recover and use key';
       }
     }
 
@@ -3787,7 +3800,7 @@ function promptForAccessKey(){
     freeBtn.disabled = false;
     freeBtnLabel.textContent = 'Get my free key';
     recoverBtn.disabled = false;
-    recoverBtnLabel.textContent = 'Recover key';
+    recoverBtnLabel.textContent = 'Recover and use key';
     overlay.style.display = 'flex';
     proBtn.addEventListener('click', onProClick);
     freeBtn.addEventListener('click', onFreeClick);
@@ -4181,7 +4194,12 @@ async function generate(){
       // Free-limit-reached or protocol-requires-Pro — give a real,
       // clickable path to upgrade right where the block happened,
       // instead of just an error message with nowhere to go.
-      outputBox.innerHTML = escapeHtml(err.message) + '<br><br><button type="button" id="inlineChangeKeyBtn" class="btn-secondary" style="width:auto; padding:8px 16px; margin-right:8px;">Change key</button><button type="button" id="inlineUpgradeBtn" class="btn-secondary" style="width:auto; padding:8px 16px;">Upgrade to Pro</button>';
+      const notice = buildEntitlementNotice(err, form.protocol);
+      outputBox.innerHTML =
+        '<strong>' + escapeHtml(notice.title) + '</strong><br>' +
+        '<span>' + escapeHtml(notice.body) + '</span><br><br>' +
+        '<button type="button" id="inlineChangeKeyBtn" class="btn-secondary" style="width:auto; padding:8px 16px; margin-right:8px;">Change key</button>' +
+        '<button type="button" id="inlineUpgradeBtn" class="btn-secondary" style="width:auto; padding:8px 16px;">Upgrade to Pro</button>';
     }else{
       outputBox.textContent = 'Could not generate feedback. ' + err.message;
     }
@@ -4196,6 +4214,31 @@ function escapeHtml(str){
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+function getProtocolLabel(protocolKey){
+  const protocol = KidbusterCore.PROTOCOLS[protocolKey];
+  return protocol ? protocol.label : (protocolKey || 'This protocol');
+}
+
+function buildEntitlementNotice(err, protocolKey){
+  const protocolLabel = getProtocolLabel(protocolKey);
+  if(err.reason === 'protocol_requires_pro'){
+    return {
+      title: protocolLabel + ' needs Pro',
+      body: 'Your saved key is on the Free plan. Upgrade to Pro to unlock ' + protocolLabel + ', every current and future protocol, and unlimited reports.'
+    };
+  }
+  if(err.reason === 'free_limit_reached'){
+    return {
+      title: 'Free monthly limit reached',
+      body: 'This key has used all free Classic reports for this month. Upgrade to Pro for unlimited reports and every protocol.'
+    };
+  }
+  return {
+    title: 'Pro access needed',
+    body: err.message || 'This action needs Pro access. Upgrade to continue, or change key if you already have Pro.'
+  };
 }
 
 // Starts the Pro upgrade flow using whatever license key is already
