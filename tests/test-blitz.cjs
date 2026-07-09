@@ -8,37 +8,88 @@ module.exports = function run(){
 
   console.log('\n=== test-blitz.cjs ===');
 
-  console.log('\n1) Blitz is registered correctly in PROTOCOLS');
+  console.log('\n1) Blitz is registered correctly in PROTOCOLS, and the pool is the new Focus x Voice structure');
   check('PROTOCOLS.BLITZ exists', !!KidbusterCore.PROTOCOLS.BLITZ);
   check('PROTOCOLS.BLITZ.label is "Blitz ⚡"', KidbusterCore.PROTOCOLS.BLITZ.label === 'Blitz ⚡');
-  check('PROTOCOLS.BLITZ.models has 10 entries', KidbusterCore.PROTOCOLS.BLITZ.models.length === 10);
-  check('BLITZ_MODEL_POOL exported directly has 10 entries', KidbusterCore.BLITZ_MODEL_POOL.length === 10);
+  const focusKeys = Object.keys(KidbusterCore.BLITZ_MODEL_POOL);
+  check('BLITZ_MODEL_POOL has exactly 10 Focus entries', focusKeys.length === 10);
+  check('BLITZ_VOICES lists exactly warm/simple/polished, in that order', JSON.stringify(KidbusterCore.BLITZ_VOICES) === JSON.stringify(['warm', 'simple', 'polished']));
+  check('BLITZ_DEFAULT_VOICE is "warm"', KidbusterCore.BLITZ_DEFAULT_VOICE === 'warm');
+  focusKeys.forEach(key => {
+    const focus = KidbusterCore.BLITZ_MODEL_POOL[key];
+    check(key + ' has a label', typeof focus.label === 'string' && focus.label.length > 0);
+    KidbusterCore.BLITZ_VOICES.forEach(voice => {
+      check(key + '.' + voice + ' is a non-empty string', typeof focus[voice] === 'string' && focus[voice].length > 0);
+    });
+  });
 
-  console.log('\n2) Exactly one model is selected per generation, never blended');
+  console.log('\n2) Exactly one Focus is selected per generation, never blended (Voice held constant at the default here)');
   {
     const seenKeys = new Set();
     for(let i = 0; i < 60; i++){
       const prompt = KidbusterCore.buildBlitzSystemPrompt({});
-      // Count how many of the 10 models' example text appears verbatim in the prompt.
-      const matches = KidbusterCore.BLITZ_MODEL_POOL.filter(m => prompt.includes(m.text));
-      if(matches.length === 1) seenKeys.add(matches[0].key);
-      check('Call ' + i + ': exactly one model\'s text present (found ' + matches.length + ')', matches.length === 1);
+      // Count how many of the 10 focuses' warm text (the default voice) appears verbatim in the prompt.
+      const matches = focusKeys.filter(key => prompt.includes(KidbusterCore.BLITZ_MODEL_POOL[key].warm));
+      if(matches.length === 1) seenKeys.add(matches[0]);
+      check('Call ' + i + ': exactly one focus\'s text present (found ' + matches.length + ')', matches.length === 1);
       if(matches.length !== 1) break; // stop spamming failures if something is fundamentally wrong
     }
-    check('Randomness actually varies across calls (saw >1 distinct model in 60 calls)', seenKeys.size > 1);
-    console.log('  (distinct models seen across 60 calls: ' + seenKeys.size + '/10)');
+    check('Randomness actually varies across calls (saw >1 distinct focus in 60 calls)', seenKeys.size > 1);
+    console.log('  (distinct focuses seen across 60 calls: ' + seenKeys.size + '/10)');
   }
 
-  console.log('\n3) forcedModelKey override works (test-only path)');
-  KidbusterCore.BLITZ_MODEL_POOL.forEach(m => {
-    const prompt = KidbusterCore.buildBlitzSystemPrompt({ forcedModelKey: m.key });
-    check('forcedModelKey=' + m.key + ' -> prompt contains that model\'s text', prompt.includes(m.text));
-    check('forcedModelKey=' + m.key + ' -> prompt contains its label', prompt.includes('Model: ' + m.label));
-    const otherModelsPresent = KidbusterCore.BLITZ_MODEL_POOL.filter(other => other.key !== m.key && prompt.includes(other.text));
-    check('forcedModelKey=' + m.key + ' -> no other model\'s text present', otherModelsPresent.length === 0);
+  console.log('\n3) forcedModelKey override works for Focus (test-only path), independent of Voice');
+  focusKeys.forEach(key => {
+    const focus = KidbusterCore.BLITZ_MODEL_POOL[key];
+    const prompt = KidbusterCore.buildBlitzSystemPrompt({ forcedModelKey: key });
+    check('forcedModelKey=' + key + ' -> prompt contains that focus\'s default (warm) text', prompt.includes(focus.warm));
+    check('forcedModelKey=' + key + ' -> prompt contains its label', prompt.includes('Model: ' + focus.label));
+    const otherFocusesPresent = focusKeys.filter(other => other !== key && prompt.includes(KidbusterCore.BLITZ_MODEL_POOL[other].warm));
+    check('forcedModelKey=' + key + ' -> no other focus\'s text present', otherFocusesPresent.length === 0);
   });
 
-  console.log('\n4) Prompt contains no leftover tokens and no rating/length-tier concepts');
+  console.log('\n4) Voice selection: Focus + Voice together determine which single text gets injected');
+  {
+    const focus = KidbusterCore.BLITZ_MODEL_POOL.balanced;
+    const warmPrompt = KidbusterCore.buildBlitzSystemPrompt({ forcedModelKey: 'balanced', voice: 'warm' });
+    check('voice: warm -> injects the warm text', warmPrompt.includes(focus.warm));
+    check('voice: warm -> does NOT inject simple or polished text', !warmPrompt.includes(focus.simple) && !warmPrompt.includes(focus.polished));
+
+    const simplePrompt = KidbusterCore.buildBlitzSystemPrompt({ forcedModelKey: 'balanced', voice: 'simple' });
+    check('voice: simple -> injects the simple text', simplePrompt.includes(focus.simple));
+    check('voice: simple -> does NOT inject warm or polished text', !simplePrompt.includes(focus.warm) && !simplePrompt.includes(focus.polished));
+
+    const polishedPrompt = KidbusterCore.buildBlitzSystemPrompt({ forcedModelKey: 'balanced', voice: 'polished' });
+    check('voice: polished -> injects the polished text', polishedPrompt.includes(focus.polished));
+    check('voice: polished -> does NOT inject warm or simple text', !polishedPrompt.includes(focus.warm) && !polishedPrompt.includes(focus.simple));
+
+    const noVoiceGiven = KidbusterCore.buildBlitzSystemPrompt({ forcedModelKey: 'balanced' });
+    check('no voice given at all -> defaults to warm', noVoiceGiven.includes(focus.warm));
+
+    const invalidVoice = KidbusterCore.buildBlitzSystemPrompt({ forcedModelKey: 'balanced', voice: 'nonexistent-voice' });
+    check('unrecognized voice value -> fails safe to warm rather than crashing', invalidVoice.includes(focus.warm));
+
+    // The label is Focus-only — it must not vary by Voice, since Voice is
+    // purely a change in how the SAME focus sounds, not a different focus.
+    check('label is identical across all 3 voices for the same focus', warmPrompt.includes('Model: Balanced') && simplePrompt.includes('Model: Balanced') && polishedPrompt.includes('Model: Balanced'));
+  }
+
+  console.log('\n5) All 30 example texts (10 Focus x 3 Voice) individually satisfy Blitz\'s own length and content rules');
+  {
+    const banned = ['performed well', 'completed successfully', 'developed english skills', 'continued developing', 'demonstrated understanding', 'superstar', 'rockstar'];
+    focusKeys.forEach(key => {
+      KidbusterCore.BLITZ_VOICES.forEach(voice => {
+        const text = KidbusterCore.BLITZ_MODEL_POOL[key][voice];
+        const wc = text.trim().split(/\s+/).filter(Boolean).length;
+        check(key + '.' + voice + ' is 65-90 words (found ' + wc + ')', wc >= 65 && wc <= 90);
+        const foundBanned = banned.filter(b => text.toLowerCase().includes(b));
+        check(key + '.' + voice + ' avoids corporate/exaggerated phrasing', foundBanned.length === 0);
+        check(key + '.' + voice + ' contains no literal emoji (Blitz forbids emoji entirely, including in its own examples)', !/\p{Extended_Pictographic}/u.test(text));
+      });
+    });
+  }
+
+  console.log('\n6) Prompt contains no leftover tokens and no rating/length-tier concepts');
   {
     const prompt = KidbusterCore.buildBlitzSystemPrompt({ forcedModelKey: 'standard' });
     check('no leftover __BLITZ_MODEL_LABEL__ token', !prompt.includes('__BLITZ_MODEL_LABEL__'));
@@ -47,7 +98,7 @@ module.exports = function run(){
     check('mentions the 150-word hard limit', prompt.includes('150 words'));
   }
 
-  console.log('\n5) buildUserMessage includes the Rating line for every protocol, including Blitz (which now has ratings again)');
+  console.log('\n7) buildUserMessage includes the Rating line for every protocol, including Blitz (which now has ratings again)');
   {
     const blitzMsg = KidbusterCore.buildUserMessage({ studentName:'Sam', notes:'practiced past tense', rating:'4', protocol:'BLITZ' });
     check('Blitz user message now has a "Rating:" line', blitzMsg.includes('Rating: 4/5'));
@@ -57,7 +108,7 @@ module.exports = function run(){
     check('MA user message still has "Rating:" line', maMsg.includes('Rating: 4/5'));
   }
 
-  console.log('\n6) Validator: word count target/ceiling');
+  console.log('\n8) Validator: word count target/ceiling');
   function words(n){ return new Array(n).fill('word').join(' '); }
   {
     const tooLong = words(160);
@@ -77,7 +128,7 @@ module.exports = function run(){
     check('100 words -> no length warning at all', !warnJustRight.some(w => w.includes('word')));
   }
 
-  console.log('\n7) Validator: no emojis');
+  console.log('\n9) Validator: no emojis');
   {
     const withEmoji = words(90) + ' 🎉';
     const warn = KidbusterCore.analyzeBlitzOutput(withEmoji);
@@ -88,7 +139,7 @@ module.exports = function run(){
     check('comment without emoji -> NOT flagged for emoji', !warnClean.some(w => w.includes('emoji')));
   }
 
-  console.log('\n8) Validator: no bullet points or headings');
+  console.log('\n10) Validator: no bullet points or headings');
   {
     const withBullet = 'Great lesson.\n- practiced verbs\n- did homework\n' + words(80);
     check('bulleted list -> flagged', KidbusterCore.analyzeBlitzOutput(withBullet).some(w => w.includes('bullet')));
@@ -104,7 +155,7 @@ module.exports = function run(){
     check('plain prose -> NOT flagged for bullets or headings', !warnPlain.some(w => w.includes('bullet') || w.includes('heading')));
   }
 
-  console.log('\n9) Validator: leftover placeholder detection');
+  console.log('\n11) Validator: leftover placeholder detection');
   {
     const withPlaceholder = 'Great job today, [Student]! ' + words(85);
     const warn = KidbusterCore.analyzeBlitzOutput(withPlaceholder);
@@ -115,7 +166,7 @@ module.exports = function run(){
     check('placeholder properly filled in -> NOT flagged', !warnFilled.some(w => w.includes('placeholder')));
   }
 
-  console.log('\n10) PROTOCOLS.BLITZ.analyze wraps analyzeBlitzOutput correctly (ignores rating/teacher/lengthFormat args)');
+  console.log('\n12) PROTOCOLS.BLITZ.analyze wraps analyzeBlitzOutput correctly (ignores rating/teacher/lengthFormat args)');
   {
     const text = words(100);
     const viaProtocol = KidbusterCore.PROTOCOLS.BLITZ.analyze(text, '4', 'Nina', 'short');
@@ -123,22 +174,27 @@ module.exports = function run(){
     check('PROTOCOLS.BLITZ.analyze gives same result regardless of extra args', JSON.stringify(viaProtocol) === JSON.stringify(direct));
   }
 
-  console.log('\n11) Shuffle bag: all 10 models used once before any repeat');
+  console.log('\n13) Shuffle bag: all 10 focuses used once before any repeat (Voice is independent of this and never affects it)');
   {
+    const allFocusKeys = Object.keys(KidbusterCore.BLITZ_MODEL_POOL);
+    function matchFocus(prompt){
+      return allFocusKeys.filter(key => prompt.includes(KidbusterCore.BLITZ_MODEL_POOL[key].warm));
+    }
+
     KidbusterCore.resetBlitzShuffleBag();
     const seenInCycle = [];
     for(let i = 0; i < 10; i++){
       const prompt = KidbusterCore.buildBlitzSystemPrompt({});
-      const matches = KidbusterCore.BLITZ_MODEL_POOL.filter(m => prompt.includes(m.text));
-      seenInCycle.push(matches.length === 1 ? matches[0].key : null);
+      const matches = matchFocus(prompt);
+      seenInCycle.push(matches.length === 1 ? matches[0] : null);
     }
     const uniqueInCycle = new Set(seenInCycle.filter(Boolean));
-    check('10 draws after reset -> exactly 10 distinct models, no repeats', uniqueInCycle.size === 10 && seenInCycle.every(Boolean));
+    check('10 draws after reset -> exactly 10 distinct focuses, no repeats', uniqueInCycle.size === 10 && seenInCycle.every(Boolean));
 
-    // 11th draw must come from a freshly reshuffled bag (i.e. still a valid model)
+    // 11th draw must come from a freshly reshuffled bag (i.e. still a valid focus)
     const prompt11 = KidbusterCore.buildBlitzSystemPrompt({});
-    const match11 = KidbusterCore.BLITZ_MODEL_POOL.filter(m => prompt11.includes(m.text));
-    check('11th draw (bag refilled) -> still exactly one valid model', match11.length === 1);
+    const match11 = matchFocus(prompt11);
+    check('11th draw (bag refilled) -> still exactly one valid focus', match11.length === 1);
 
     // Run several full cycles and confirm every cycle of 10 is a full permutation
     KidbusterCore.resetBlitzShuffleBag();
@@ -147,16 +203,16 @@ module.exports = function run(){
       const cycleKeys = [];
       for(let i = 0; i < 10; i++){
         const prompt = KidbusterCore.buildBlitzSystemPrompt({});
-        const matches = KidbusterCore.BLITZ_MODEL_POOL.filter(m => prompt.includes(m.text));
+        const matches = matchFocus(prompt);
         if(matches.length !== 1){ allCyclesClean = false; break; }
-        cycleKeys.push(matches[0].key);
+        cycleKeys.push(matches[0]);
       }
       if(new Set(cycleKeys).size !== 10) allCyclesClean = false;
     }
     check('5 consecutive cycles of 10 draws -> each cycle is a full, repeat-free permutation', allCyclesClean);
   }
 
-  console.log('\n12) Relaxed word-count floor: 70-120 target, 150 hard ceiling');
+  console.log('\n14) Relaxed word-count floor: 70-120 target, 150 hard ceiling');
   {
     const at70 = words(70);
     check('70 words -> no length warning (new floor)', !KidbusterCore.analyzeBlitzOutput(at70).some(w => w.includes('word')));
@@ -177,17 +233,29 @@ module.exports = function run(){
     check('prompt no longer says the old "80-120 words"', !prompt.includes('80-120 words'));
   }
 
-  console.log('\n13) Anti-copying: prompt instruction + validator safety net');
+  console.log('\n15) Anti-copying: prompt instruction + validator safety net');
   {
     const prompt = KidbusterCore.buildBlitzSystemPrompt({ forcedModelKey: 'standard' });
     check('prompt contains "Never copy the selected model verbatim"', prompt.includes('Never copy the selected model verbatim'));
     check('prompt tells the model to rewrite using this lesson\'s own evidence', prompt.includes('naturally rewriting every sentence using this lesson\'s own evidence'));
 
-    // A near-verbatim reproduction of the Standard model (only the bracketed
-    // parts changed) should be caught by the shingle-matching safety net.
-    const copiedComment = "Excellent job today, Oscar! We practiced animal vocabulary and you completed today's activities with good focus. You showed a solid understanding of the lesson and were able to apply what we learned during class. Keep reviewing today's material and continue practicing between lessons. The more we practice together, the more confident you will become. See you next class!";
+    // A near-verbatim reproduction of the Standard (warm) model (only the
+    // bracketed parts changed) should be caught by the shingle-matching
+    // safety net — using the CURRENT warm library text directly, so this
+    // test doesn't silently stop testing anything real if the library is
+    // ever revised again.
+    const standardWarm = KidbusterCore.BLITZ_MODEL_POOL.standard.warm;
+    const copiedComment = standardWarm.split('[Student]').join('Oscar').split('[topics]').join('animal vocabulary');
     const warnCopied = KidbusterCore.analyzeBlitzOutput(copiedComment);
     check('near-verbatim copy of the Standard model -> flagged', warnCopied.some(w => w.includes('reproduces wording') && w.includes('Standard')));
+
+    // The same check must also catch copying from a DIFFERENT voice of the
+    // same focus, or a different focus entirely — not just whichever one
+    // happens to be "Standard warm".
+    const balancedPolished = KidbusterCore.BLITZ_MODEL_POOL.balanced.polished;
+    const copiedFromPolished = balancedPolished.split('[Student]').join('Maya').split('[topics]').join('past tense');
+    const warnCopiedPolished = KidbusterCore.analyzeBlitzOutput(copiedFromPolished);
+    check('near-verbatim copy of a DIFFERENT focus/voice (Balanced, polished) -> also flagged', warnCopiedPolished.some(w => w.includes('reproduces wording') && w.includes('Balanced') && w.includes('polished')));
 
     // A genuinely rewritten comment inspired by the same model's structure
     // should NOT trip the check.
@@ -196,7 +264,7 @@ module.exports = function run(){
     check('genuinely rewritten comment (same topic, different wording) -> NOT flagged for copying', !warnRewritten.some(w => w.includes('reproduces wording')));
   }
 
-  console.log('\n14) Lesson Evidence Rule: Blitz formally supports any evidence type, not just a full transcript');
+  console.log('\n16) Lesson Evidence Rule: Blitz formally supports any evidence type, not just a full transcript');
 {
   const prompt = KidbusterCore.buildBlitzSystemPrompt({ forcedModelKey: 'standard' });
   check('has a named "LESSON EVIDENCE RULE (IMMUTABLE)" section', prompt.includes('LESSON EVIDENCE RULE (IMMUTABLE)'));
@@ -208,7 +276,7 @@ module.exports = function run(){
   check('updated core rule uses the exact specified wording', prompt.includes('Use only information supported by the supplied lesson evidence. Lesson evidence may consist of a transcript, teacher notes, a short lesson summary, bullet points, or any combination of these. Never invent information beyond what the supplied evidence reasonably supports.'));
 }
 
-  console.log('\n15) Safe Inference Principle: the exact worked example is present, with correct safe/unsafe lists');
+  console.log('\n17) Safe Inference Principle: the exact worked example is present, with correct safe/unsafe lists');
 {
   const prompt = KidbusterCore.buildBlitzSystemPrompt({ forcedModelKey: 'standard' });
   check('has a named "SAFE INFERENCE PRINCIPLE" section', prompt.includes('SAFE INFERENCE PRINCIPLE'));
@@ -218,7 +286,7 @@ module.exports = function run(){
   check('validation checklist has a matching Safe Inference line', prompt.includes('Conclusions drawn are safe inferences from the supplied evidence, per the Safe Inference Principle'));
 }
 
-  console.log('\n16) Terminology consistency: "lesson evidence" replaces bare "notes"/"transcript" framing throughout, in both the prompt and the outgoing user message');
+  console.log('\n18) Terminology consistency: "lesson evidence" replaces bare "notes"/"transcript" framing throughout, in both the prompt and the outgoing user message');
 {
   const prompt = KidbusterCore.buildBlitzSystemPrompt({ forcedModelKey: 'standard' });
   check('no leftover "lesson transcript" phrasing implying evidence must be a full transcript', !prompt.includes('lesson transcript'));

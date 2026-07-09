@@ -237,22 +237,6 @@ body{
   color:transparent;
   text-transform:uppercase;
 }
-.status-dot{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  font-family:var(--font-mono);
-  font-size:12px;
-  letter-spacing:0.05em;
-  color:var(--text-dim);
-}
-.status-dot span.dot{
-  width:7px;height:7px;border-radius:50%;
-  background:var(--toxin);
-  box-shadow:0 0 6px var(--toxin-glow);
-  display:inline-block;
-  transition:background-color 0.45s ease, box-shadow 0.45s ease;
-}
 .header-actions{
   display:flex;
   align-items:center;
@@ -260,15 +244,28 @@ body{
   flex-wrap:wrap;
   justify-content:flex-end;
 }
-.account-btn{
+button.account-btn{
+  flex:none;
   width:auto;
-  min-height:34px;
-  padding:8px 14px;
+  min-height:auto;
+  padding:6px 14px;
   font-family:var(--font-mono);
   font-size:11px;
   letter-spacing:0.06em;
   text-transform:uppercase;
+  background:var(--olive);
+  color:var(--toxin);
+  border:1px solid var(--toxin-border);
+  border-radius:999px;
+  transition:background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
+button.account-btn:hover{
+  background:var(--toxin-dim);
+  border-color:var(--toxin);
+  color:var(--toxin);
+  box-shadow:0 0 10px -2px var(--toxin-glow);
+}
+button.account-btn:disabled{opacity:0.5;cursor:default;}
 .account-panel{
   background:var(--surface);
   border:1px solid var(--toxin-border);
@@ -329,6 +326,7 @@ body{
   flex-wrap:wrap;
 }
 .account-actions .btn-secondary, .account-panel-head .btn-secondary{
+  flex:none;
   width:auto;
   padding:8px 14px;
 }
@@ -390,6 +388,19 @@ label.field-label{
   color:#fff700;
   text-shadow:0 0 8px rgba(255,247,0,0.85);
   line-height:1;
+}
+.protocol-lollipop{
+  text-shadow:0 0 8px rgba(255,11,237,0.85);
+  line-height:1;
+}
+.protocol-crosshair{
+  height:13px;
+  width:auto;
+  margin-left:6px;
+  display:inline-block;
+  object-fit:contain;
+  vertical-align:middle;
+  pointer-events:none;
 }
 /* OF's label is much longer than the other three ("OF Protocol (Trial
    Evaluation)" vs one word each) — forcing it to occupy the full row
@@ -476,8 +487,8 @@ input[type=text], textarea, select{
   padding:10px 12px;
   resize:vertical;
 }
-input[type=text]:hover, textarea:hover{border-color:var(--toxin-border);}
-input[type=text]:focus, textarea:focus{
+input[type=text]:hover, textarea:hover, select:hover{border-color:var(--toxin-border);}
+input[type=text]:focus, textarea:focus, select:focus{
   outline:none;
   border-color:var(--toxin);
   box-shadow:0 0 0 3px var(--toxin-dim), 0 0 12px -2px var(--toxin-glow);
@@ -1183,7 +1194,6 @@ body.protocol-beida .generate-btn.loading{
     </div>
     <div class="header-actions">
       <button class="btn-secondary account-btn" id="accountBtn" type="button">Access</button>
-      <div class="status-dot"><span class="dot"></span>LOCAL MODE · NO STORAGE</div>
     </div>
   </div>
 
@@ -1226,8 +1236,8 @@ body.protocol-beida .generate-btn.loading{
         <div class="field">
           <label class="field-label">Official Protocol</label>
           <div class="protocol-select" id="protocolSelect">
-            <label><input type="radio" name="protocol" value="MA" checked> Classic<span class="info-icon" tabindex="0" data-tooltip="Full detailed report — vocabulary, grammar, homework. The standard format.">?</span></label>
-            <label><input type="radio" name="protocol" value="MS"> Sugarcoat<span class="info-icon" tabindex="0" data-tooltip="Same report as Classic, written in a warmer, parent-friendly voice.">?</span></label>
+            <label><input type="radio" name="protocol" value="MA" checked> Classic<img src="/assets/classic-crosshair.png" alt="" class="protocol-crosshair" aria-hidden="true"><span class="info-icon" tabindex="0" data-tooltip="Full detailed report — vocabulary, grammar, homework. The standard format.">?</span></label>
+            <label><input type="radio" name="protocol" value="MS"> Sugarcoat <span class="protocol-lollipop" aria-hidden="true">&#127853;</span><span class="info-icon" tabindex="0" data-tooltip="Same report as Classic, written in a warmer, parent-friendly voice.">?</span></label>
             <label><input type="radio" name="protocol" value="BLITZ"> Blitz <span class="protocol-lightning" aria-hidden="true">&#9889;</span><span class="info-icon" tabindex="0" data-tooltip="Short, neutral comment for quick platform feedback. No rating-based tone shifts.">?</span></label>
             <label><input type="radio" name="protocol" value="BEIDA"> Beida<span class="info-icon" tabindex="0" data-tooltip="Two-field comment matching the BetaKid platform's own form: Learning Content + General Performance.">?</span></label>
             <label><input type="radio" name="protocol" value="OF"> OF Protocol (Trial Evaluation)<span class="info-icon" tabindex="0" data-tooltip="3-section narrative for trial-lesson evaluations — not a regular lesson report.">?</span></label>
@@ -1241,6 +1251,14 @@ body.protocol-beida .generate-btn.loading{
             <label><input type="radio" name="lengthFormat" value="long" checked> Long</label>
           </div>
           <div class="rating-caption" id="lengthFormatCaption"></div>
+        </div>
+        <div class="field" id="blitzVoiceField" style="display:none;">
+          <label class="field-label" for="blitzVoiceSelect">Voice</label>
+          <select id="blitzVoiceSelect">
+            <option value="warm" selected>Warm</option>
+            <option value="simple">Simple</option>
+            <option value="polished">Polished</option>
+          </select>
         </div>
         <div class="field">
           <label class="field-label" for="teacherName">Teacher</label>
@@ -2633,28 +2651,77 @@ Before returning the report, verify:
   // the-blank template to copy verbatim) — see BLITZ_PROTOCOL_V1_0_SOURCE's
   // own instruction on this below. Adding an 11th model later means only
   // appending to this array — nothing else in the protocol changes.
-  const BLITZ_MODEL_POOL = [
-    { key:'standard', label:'Standard',
-      text:"Excellent job today, [Student]! We practiced [topics] and you completed today's activities with good focus. You showed a solid understanding of the lesson and were able to apply what we learned during class. Keep reviewing today's material and continue practicing between lessons. The more we practice together, the more confident you will become. See you next class!" },
-    { key:'progress', label:'Progress',
-      text:"Good work today, [Student]. During today's lesson we focused on [topics] and you showed steady progress throughout the class. You completed the activities well and continued building on what you've already learned. Keep practicing the new vocabulary and sentence patterns to become even more confident. I'm looking forward to seeing your progress next lesson." },
-    { key:'participation', label:'Participation',
-      text:"Thank you for today's lesson, [Student]. You participated well during our activities and stayed engaged while we practiced [topics]. Your effort made today's lesson productive, and you were willing to answer questions and try new language. Keep practicing regularly and your English will continue improving. See you next time!" },
-    { key:'knowledge', label:'Knowledge',
-      text:"Nice job today, [Student]. We spent today's lesson practicing [topics], and you showed a good understanding of the material. There are still a few areas that need a little more practice, but you are making steady progress with each lesson. Keep reviewing today's content and I look forward to seeing you again soon." },
-    { key:'effort', label:'Effort',
-      text:"Well done today, [Student]. We worked on [topics], and you put good effort into completing all of today's activities. You listened carefully, followed the lesson well, and continued improving your English skills. Keep practicing regularly and everything will become easier with time. See you in our next lesson!" },
-    { key:'balanced', label:'Balanced',
-      text:"Good lesson today, [Student]. We practiced [topics] together and made good progress throughout the class. You performed well in many activities, while a few parts will become easier with additional practice. Keep reviewing today's lesson and continue building your confidence. See you next class!" },
-    { key:'productive', label:'Productive',
-      text:"Thank you for today's lesson, [Student]. Today's class focused on [topics], and you completed the lesson activities successfully. Your participation helped us move through the lesson smoothly, and you continued developing your English skills. Keep practicing what we learned today and I'll see you next lesson!" },
-    { key:'speaking', label:'Speaking',
-      text:"Great effort today, [Student]. We practiced [topics], and you had many opportunities to use English throughout the lesson. You communicated well and became more comfortable as the class continued. Continue practicing outside of class whenever possible, and your confidence will keep growing. See you soon!" },
-    { key:'consistency', label:'Consistency',
-      text:"Good job today, [Student]. We worked on [topics] and you stayed focused throughout the lesson. You completed today's exercises well and continued improving your understanding of the material. Keep practicing consistently and each lesson will become even easier. Looking forward to our next class!" },
-    { key:'general', label:'General',
-      text:"It was a productive lesson today, [Student]. We practiced [topics] and covered several important parts of today's lesson. You participated well, completed the activities, and continued making progress with your English. Keep reviewing what we learned today and continue practicing regularly. See you next class!" }
-  ];
+  const BLITZ_VOICES = ['warm', 'simple', 'polished'];
+  const BLITZ_DEFAULT_VOICE = 'warm';
+
+  // Two-dimensional: Focus (10 archetypes, picked automatically via the
+  // shuffle bag below, unchanged from V1.0) x Voice (3 selectable writing
+  // voices, chosen by the teacher via a UI dropdown). Same comment focus,
+  // different sound — see BLITZ_PROTOCOL_V1_0_SOURCE's own WRITING MODEL
+  // section for how this gets used as a style example, never a template to
+  // copy verbatim.
+  const BLITZ_MODEL_POOL = {
+    standard: {
+      label: 'Standard',
+      warm: `Great lesson today, [Student]! We worked on [topics], and you brought real energy to the whole class. You listened carefully and joined in with everything we tried, which made the lesson fly by. It's lovely to see how naturally things are starting to click for you. A little review before next time will help today's ideas settle in even more. Looking forward to seeing you again soon!`,
+      simple: `Great lesson today, [Student]! We worked on [topics] together in class. You listened well and tried every activity we did. You answered questions with real confidence too. You were full of energy the whole time, and it showed in everything you did. Things are starting to feel easier for you now, which is wonderful. Please look at today's material again before next class. It will help you remember it well. See you soon!`,
+      polished: `It was a pleasure to see you so engaged in today's lesson on [topics], [Student]. You listened attentively throughout and took part in every activity with genuine enthusiasm, which made for a wonderfully smooth session. It's encouraging to see these ideas beginning to feel more natural for you. A brief review before our next lesson will help reinforce what we covered today. I look forward to our next class together.`
+    },
+    progress: {
+      label: 'Progress',
+      warm: `[Student], you continued building your confidence with [topics] today, and it really showed. Things that felt tricky a few lessons ago are starting to feel easier, and you answered more quickly and with less hesitation than before. A little extra thinking time is still needed here and there, which is completely normal at this stage. This kind of steady progress is exactly what we love to see!`,
+      simple: `[Student], you are getting more confident with [topics] every lesson. Things that were hard before are becoming much easier for you now. You answered faster today, with less waiting and less worry. You are also trying more new words than before, which is great to see. Sometimes you still need a little extra time to think things through, and that is completely okay. You are making steady progress. That is exactly what we want to see!`,
+      polished: `You've continued building your confidence with [topics], [Student], and today's lesson made that especially clear. Ideas that felt challenging just a few lessons ago are becoming noticeably easier, and your answers came more quickly and with less hesitation than before. A touch of extra thinking time is still needed occasionally, which is entirely expected at this stage. This kind of steady, visible progress is exactly what we hope to see.`
+    },
+    participation: {
+      label: 'Participation',
+      warm: `You were wonderfully engaged in today's lesson on [topics], [Student], joining in with every activity we tried. Even when you weren't sure of an answer, you weren't afraid to try new language instead of staying quiet, and that attitude makes such a difference. The whole class felt lively because of your energy today. Keep bringing that same willingness to try — it's helping you grow so much!`,
+      simple: `You joined in with everything today, [Student]! We practiced [topics] together in class. Even when you were not sure of an answer, you still tried instead of staying quiet. You asked good questions too, which helped the whole class learn more. That is a wonderful habit to have. The lesson felt fun and lively because of your energy today. Please keep trying like this — it is really helping you learn and grow!`,
+      polished: `You were wonderfully engaged throughout today's lesson on [topics], [Student], taking part in every activity with real willingness. Even when uncertain of an answer, you chose to try new language rather than stay quiet, and that attitude makes a genuine difference to your progress. Your energy brought a lively feel to the whole class today. Please continue bringing that same willingness to try — it's helping you grow a great deal.`
+    },
+    knowledge: {
+      label: 'Knowledge',
+      warm: `You showed a really clear understanding of [topics] in today's lesson, [Student]. New vocabulary was used correctly in most of today's activities, and you only needed things explained once before they clicked. You sometimes needed a small reminder to recall a word on your own, which is a totally normal part of making new language feel automatic. A really solid lesson today — well done!`,
+      simple: `You understood [topics] really well today, [Student]. You used the new words correctly in most of the activities we did. I only needed to explain things one time, which was excellent. You also answered several questions completely on your own, without much help from me. Sometimes you needed a small hint to remember a word by yourself, and that is okay. That is normal while you are still learning. Well done today!`,
+      polished: `You demonstrated a genuinely clear grasp of [topics] in today's lesson, [Student]. New vocabulary was applied correctly throughout most of today's activities, and explanations only needed to be given once before they were understood. A gentle reminder was occasionally needed to recall a word independently, which is a perfectly natural part of making new language feel automatic. A thoroughly solid lesson today — well done.`
+    },
+    effort: {
+      label: 'Effort',
+      warm: `You worked so carefully in today's lesson on [topics], [Student], staying focused even during the trickier parts. That kind of steady effort made a real difference, and you approached each activity with a positive attitude instead of giving up when something felt new. A little hesitation before answering is expected at this stage and will ease naturally with practice. Your effort today was genuine, and that always pays off!`,
+      simple: `You worked really carefully today, [Student]! We practiced [topics] together in class. You stayed focused even during the harder parts of the lesson. You tried again when something felt difficult, instead of giving up. You kept a good attitude the whole time, which made a real difference. A little hesitation before answering is completely normal right now. It will get easier with more practice. Your effort today was truly wonderful!`,
+      polished: `You worked with real care throughout today's lesson on [topics], [Student], remaining focused even through the more challenging moments. That steady effort made a genuine difference, and you approached each activity with a positive attitude rather than becoming discouraged by anything unfamiliar. A degree of hesitation before answering is expected at this stage and will ease naturally with continued practice. Your effort today was sincere, and that will always pay off.`
+    },
+    balanced: {
+      label: 'Balanced',
+      warm: `Today's lesson on [topics] had a lot of strong moments for you, [Student]. Your participation was great, and you kept a positive energy throughout the whole class. One thing that will get easier with more practice is working a little more independently, without as much help from me. That's a completely normal part of learning something new, not something to worry about. A lesson with real progress and a clear next step!`,
+      simple: `Today's lesson on [topics] had many good moments for you, [Student]. You joined in well and stayed positive throughout the whole class. You answered most questions with real confidence too, which was great to see. One thing to keep practicing is working a little more on your own, without as much help from me. This is completely normal when learning something new, so please do not worry about it. You made real progress today!`,
+      polished: `Today's lesson on [topics] included a number of genuinely strong moments for you, [Student]. Your participation was excellent, and you maintained a positive energy throughout the class. One area that will become easier with continued practice is working a touch more independently, with less guidance from me. This is a completely natural part of learning something new, not a cause for concern. A lesson marked by real progress and a clear next step forward.`
+    },
+    productive: {
+      label: 'Productive',
+      warm: `We covered a lot of ground in today's lesson on [topics], [Student], and you kept up well with every part of the class. Nothing needed to be rushed or skipped, so we got to explore things a little more deeply than usual. You handled that extra depth easily and stayed focused the whole time. Lessons like today make the next one so much easier to build on!`,
+      simple: `We covered a lot of ground today, [Student]! We worked on [topics] together in class. You kept up well with every single part of the lesson. You stayed focused from start to finish, without slowing down at all. We did not need to rush or skip anything, which was great. This meant we could go a little deeper than usual, and you handled it easily and calmly. Great work today, [Student]!`,
+      polished: `We made excellent progress through today's lesson on [topics], [Student], and you kept pace comfortably with every part of the class. Nothing needed to be rushed or set aside, which allowed us to explore the material in a little more depth than usual. You handled that additional depth with ease and remained focused throughout. Lessons of this kind make the next one considerably easier to build upon.`
+    },
+    speaking: {
+      label: 'Speaking',
+      warm: `You had lots of chances to speak English out loud in today's lesson on [topics], [Student], and you made great use of them. Your sentences came out more naturally as the lesson went on, and you showed growing confidence trying new words instead of sticking to familiar ones. A few new sounds are still settling in, which is expected this early and will improve with practice. Your willingness to keep talking was the best part of today!`,
+      simple: `You had many chances to speak English today, [Student], and you used them well! We practiced [topics] together in class. Your sentences sounded more natural as the lesson went on. You tried new words instead of only using the easy, familiar ones. You also asked questions in English, which was wonderful to hear. A few new sounds still need a little more practice, and that is completely normal right now.`,
+      polished: `You had ample opportunity to speak English aloud during today's lesson on [topics], [Student], and made excellent use of it. Your sentences grew noticeably more natural as the lesson progressed, and you showed growing confidence experimenting with new words rather than relying on familiar ones. A few new sounds are still settling in, which is entirely expected this early and will improve with continued practice. Your willingness to keep talking was the standout part of today's lesson.`
+    },
+    consistency: {
+      label: 'Consistency',
+      warm: `You brought the same steady focus to today's lesson on [topics], [Student], that's been showing up so nicely in recent classes. Your attention stayed strong the whole way through, without the usual dip that sometimes happens partway in. That kind of consistency really adds up over time, turning good individual lessons into real long-term progress. Today was another solid step in that direction — keep it going!`,
+      simple: `You brought the same good focus to today's lesson, [Student]! We worked on [topics] together. Your attention stayed strong all class, without the usual dip in the middle. You kept trying your best the whole time too. This kind of steady focus really helps over time. Good single lessons turn into real long-term progress this way. Today was another solid step — keep it going!`,
+      polished: `You brought the same steady focus to today's lesson on [topics], [Student], that has been so evident in recent classes. Your attention remained strong throughout, without the usual dip that sometimes occurs partway through a lesson. This kind of consistency accumulates meaningfully over time, turning individually good lessons into genuine long-term progress. Today marked another solid step in that direction — please keep it going.`
+    },
+    general: {
+      label: 'General',
+      warm: `Today's lesson on [topics] went really well for you, [Student], with good focus kept across the whole class. Most of the new material felt comfortable, and you stayed engaged and willing to try the whole time. A little more practice will help a couple of today's newer points feel fully natural, which is completely normal at this stage. Looking forward to building on today's lesson next time!`,
+      simple: `Today's lesson on [topics] went really well for you, [Student]! You kept good focus the whole class. Most of the new material felt easy for you. You stayed engaged and tried hard the whole time. You also asked good questions when unsure. A little more practice will help a few new points feel more natural. That is normal right now. Looking forward to next time!`,
+      polished: `Today's lesson on [topics] went particularly well for you, [Student], with good focus maintained throughout the class. Most of the new material felt comfortable, and you remained engaged and willing to try the entire time. A touch more practice will help a couple of today's newer points feel fully natural, which is entirely expected at this stage. I look forward to building on today's lesson next time.`
+    },
+  };
 
   // Shuffle bag, not pure Math.random() per call: guarantees all 10 models
   // get used once before any model repeats, while still feeling random to
@@ -2666,7 +2733,7 @@ Before returning the report, verify:
   let blitzShuffleBag = [];
 
   function refillAndShuffleBlitzBag(){
-    const bag = BLITZ_MODEL_POOL.map(m => m.key);
+    const bag = Object.keys(BLITZ_MODEL_POOL);
     // Fisher-Yates shuffle
     for(let i = bag.length - 1; i > 0; i--){
       const j = Math.floor(Math.random() * (i + 1));
@@ -2684,12 +2751,19 @@ Before returning the report, verify:
     blitzShuffleBag = [];
   }
 
+  /**
+   * Returns the next Focus key from the shuffle bag (e.g. 'standard',
+   * 'progress') — unchanged selection logic from V1.0, still guarantees
+   * all 10 Focus archetypes are used once before any repeat. Voice is a
+   * completely separate, user-selected axis (see buildBlitzSystemPrompt)
+   * and never goes through this bag at all.
+   * @returns {string}
+   */
   function pickNextBlitzModel(){
     if(blitzShuffleBag.length === 0){
       refillAndShuffleBlitzBag();
     }
-    const key = blitzShuffleBag.pop();
-    return BLITZ_MODEL_POOL.find(m => m.key === key);
+    return blitzShuffleBag.pop();
   }
 
   const BLITZ_PROTOCOL_V1_0_SOURCE = `BLITZ PROTOCOL COMMAND CHAIN V1.0
@@ -2795,17 +2869,46 @@ VALIDATION CHECKLIST
    * @param {string} [params.forcedModelKey] - test-only override
    * @returns {string}
    */
+  /**
+   * Builds the Blitz system prompt. Unlike MA/Sweet Voice, this ignores
+   * rating and lengthFormat entirely — Blitz doesn't use either concept.
+   *
+   * Two independent selections go into the single injected example:
+   *   Focus  — which of the 10 archetypes (Standard, Progress, ...),
+   *            drawn from the shuffle bag exactly as in V1.0 (see
+   *            pickNextBlitzModel) — never user-selected, never changed.
+   *   Voice  — which of the 3 writing voices (warm/simple/polished),
+   *            chosen by the teacher via the UI dropdown and passed in
+   *            as params.voice. Defaults to 'warm' if not supplied.
+   *
+   * forcedModelKey exists purely for deterministic testing and bypasses
+   * the bag entirely for Focus — normal call sites never pass it, so real
+   * generations always draw Focus from the bag. Voice was never random to
+   * begin with, so there's no equivalent "forced" override needed for it.
+   * @param {object} [params]
+   * @param {string} [params.forcedModelKey] - test-only Focus override
+   * @param {string} [params.voice] - 'warm' | 'simple' | 'polished'
+   * @returns {string}
+   */
   function buildBlitzSystemPrompt(params){
-    const forcedKey = params && params.forcedModelKey;
-    const model = forcedKey
-      ? (BLITZ_MODEL_POOL.find(m => m.key === forcedKey) || pickNextBlitzModel())
+    const forcedFocusKey = params && params.forcedModelKey;
+    const focusKey = (forcedFocusKey && BLITZ_MODEL_POOL[forcedFocusKey])
+      ? forcedFocusKey
       : pickNextBlitzModel();
+    const focus = BLITZ_MODEL_POOL[focusKey];
+
+    const requestedVoice = (params && params.voice) || BLITZ_DEFAULT_VOICE;
+    // Fails safe to the default voice rather than crashing if an
+    // unrecognized voice value ever gets passed through.
+    const voice = focus[requestedVoice] ? requestedVoice : BLITZ_DEFAULT_VOICE;
+    const modelText = focus[voice];
+
     if(typeof console !== 'undefined' && console.log){
-      console.log('[Kidbuster Blitz] selected model:', model.key, '(' + model.label + ')');
+      console.log('[Kidbuster Blitz] selected focus:', focusKey, '(' + focus.label + ') / voice:', voice);
     }
     return BLITZ_PROTOCOL_V1_0_SOURCE
-      .split('__BLITZ_MODEL_LABEL__').join(model.label)
-      .split('__BLITZ_MODEL_TEXT__').join(model.text);
+      .split('__BLITZ_MODEL_LABEL__').join(focus.label)
+      .split('__BLITZ_MODEL_TEXT__').join(modelText);
   }
 
   /**
@@ -2864,15 +2967,23 @@ VALIDATION CHECKLIST
     // coincidental overlap and almost certainly means a sentence was
     // copied or only lightly reworded rather than newly written from the
     // transcript. This can't catch paraphrased copying, only literal.
+    // Scans all 30 Focus x Voice example texts, not just the one shown
+    // for this generation — the model was only shown one, but nothing
+    // stops it (or a bug) from drifting toward a different one's wording,
+    // and this check is cheap enough to just cover all of them.
     const copyMatch = (function(){
       const normalizedOutput = ' ' + trimmed.toLowerCase().replace(/\s+/g, ' ') + ' ';
       const SHINGLE_LEN = 8;
-      for(const model of BLITZ_MODEL_POOL){
-        const words = model.text.toLowerCase().replace(/\s+/g, ' ').trim().split(' ');
-        for(let i = 0; i + SHINGLE_LEN <= words.length; i++){
-          const phrase = words.slice(i, i + SHINGLE_LEN).join(' ');
-          if(phrase.length > 20 && normalizedOutput.includes(' ' + phrase + ' ')){
-            return { modelLabel: model.label, phrase };
+      for(const focusKey of Object.keys(BLITZ_MODEL_POOL)){
+        const focus = BLITZ_MODEL_POOL[focusKey];
+        for(const voice of BLITZ_VOICES){
+          const modelText = focus[voice];
+          const words = modelText.toLowerCase().replace(/\s+/g, ' ').trim().split(' ');
+          for(let i = 0; i + SHINGLE_LEN <= words.length; i++){
+            const phrase = words.slice(i, i + SHINGLE_LEN).join(' ');
+            if(phrase.length > 20 && normalizedOutput.includes(' ' + phrase + ' ')){
+              return { modelLabel: focus.label + ' (' + voice + ')', phrase };
+            }
           }
         }
       }
@@ -3177,6 +3288,8 @@ VALIDATION CHECKLIST
     OF_PROTOCOL_V1_4_SOURCE,
     BLITZ_PROTOCOL_V1_0_SOURCE,
     BLITZ_MODEL_POOL,
+    BLITZ_VOICES,
+    BLITZ_DEFAULT_VOICE,
     BEIDA_PROTOCOL_V1_0_SOURCE,
     BEIDA_RATING_TIERS,
     LENGTH_TIERS,
@@ -3322,6 +3435,9 @@ function buildRatingTrack(){
   document.body.classList.toggle('protocol-blitz', isBlitz);
   document.body.classList.toggle('protocol-beida', isBeida);
   document.getElementById('lengthFormatField').style.display = (isOF || isBlitz || isBeida) ? 'none' : '';
+  // Voice is Blitz-only: the Focus archetype is still selected by the
+  // shuffle bag, while the teacher chooses Warm/Simple/Polished explicitly.
+  document.getElementById('blitzVoiceField').style.display = isBlitz ? '' : 'none';
   // OF is the only protocol written entirely in the third person about the
   // student (MA/Sugarcoat/Blitz all address the student directly or don't
   // need a pronoun at all), so the pronoun toggle only matters — and only
@@ -3555,7 +3671,8 @@ function readFormState(){
     protocol: document.querySelector('input[name="protocol"]:checked').value,
     lengthFormat: (document.querySelector('input[name="lengthFormat"]:checked') || {}).value || 'long',
     studentGender: (document.querySelector('input[name="studentGender"]:checked') || {}).value || '',
-    signoffEmoji: document.getElementById('teacherSignoffEmoji').value.trim()
+    signoffEmoji: document.getElementById('teacherSignoffEmoji').value.trim(),
+    blitzVoice: document.getElementById('blitzVoiceSelect').value || 'warm'
   };
 }
 
@@ -4187,7 +4304,7 @@ async function generate(){
   console.log('[Kidbuster] transcript cleaning — raw:', form.notes.length, 'chars → cleaned:', cleanedNotes.length, 'chars');
 
   let systemPrompt = KidbusterCore.applyTeacherIdentity(
-    protocol.buildSystemPrompt({ rating: form.rating, lengthFormat: form.lengthFormat }),
+    protocol.buildSystemPrompt({ rating: form.rating, lengthFormat: form.lengthFormat, voice: form.blitzVoice }),
     form.teacherName
   );
   if(form.protocol === 'MA'){
@@ -4517,6 +4634,7 @@ document.getElementById('lengthFormatSelect').addEventListener('change', () => {
 updateLengthFormatCaption();
 
 document.getElementById('studentGenderSelect').addEventListener('change', saveDraft);
+document.getElementById('blitzVoiceSelect').addEventListener('change', saveDraft);
 
 copyBtn.addEventListener('click', () => copyOutputToClipboard(outputBox, copyBtn));
 document.getElementById('copyBeidaPerformanceBtn').addEventListener('click', () => copyOutputToClipboard(document.getElementById('beidaPerformanceBox'), document.getElementById('copyBeidaPerformanceBtn')));
@@ -4799,7 +4917,8 @@ function collectDraft(){
     studentName: form.studentName,
     krispNotes: form.notes,
     specialRemarks: form.remarks,
-    signoffEmoji: form.signoffEmoji
+    signoffEmoji: form.signoffEmoji,
+    blitzVoice: form.blitzVoice
   };
 }
 
@@ -4817,6 +4936,7 @@ function restoreDraft(){
   document.getElementById('krispNotes').value = draft.krispNotes || '';
   document.getElementById('specialRemarks').value = draft.specialRemarks || '';
   document.getElementById('teacherSignoffEmoji').value = draft.signoffEmoji || '';
+  document.getElementById('blitzVoiceSelect').value = draft.blitzVoice || 'warm';
   updateKrispCounter();
 
   if(draft.protocol){

@@ -108,7 +108,9 @@ module.exports = async function run(){
         background: getComputedStyle(btn).backgroundImage,
         badgeText: document.getElementById('protocolBadge').textContent,
         hasBolt: Boolean(document.querySelector('#protocolBadge .blitz-bolt')),
-        hasAsset: assetSelector ? Boolean(document.querySelector(assetSelector)) : false
+        hasAsset: assetSelector ? Boolean(document.querySelector(assetSelector)) : false,
+        blitzVoiceDisplay: document.getElementById('blitzVoiceField').style.display,
+        blitzVoiceOptions: Array.from(document.querySelectorAll('#blitzVoiceSelect option')).map(o => o.value)
       };
     }, proto.assetSelector || '');
 
@@ -123,6 +125,12 @@ module.exports = async function run(){
     }
     if(proto.assetSelector){
       check(proto.value + ': header badge includes the ' + proto.assetName + ' image', result.hasAsset);
+    }
+    if(proto.value === 'BLITZ'){
+      check('BLITZ: Voice dropdown is visible', result.blitzVoiceDisplay !== 'none');
+      check('BLITZ: Voice dropdown has warm/simple/polished options', JSON.stringify(result.blitzVoiceOptions) === JSON.stringify(['warm','simple','polished']));
+    }else{
+      check(proto.value + ': Voice dropdown is hidden outside Blitz', result.blitzVoiceDisplay === 'none');
     }
     check(proto.value + ": Generate button's own background is a genuinely distinct gradient, not stuck on another theme's", !seenBackgrounds.has(result.background));
     seenBackgrounds.add(result.background);
