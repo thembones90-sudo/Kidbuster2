@@ -236,11 +236,14 @@ module.exports = async function run(){
       return {
         visible: getComputedStyle(panel).display !== 'none',
         keyText: document.getElementById('accountKey').textContent,
+        buildText: document.getElementById('accountBuild').textContent,
+        expectedBuild: KidbusterCore.KIDBUSTER_BUILD_LABEL,
         planText: document.getElementById('accountPlan').textContent
       };
     });
     check('Access panel opens from the header', accountPanel.visible);
     check('Access panel shows the saved key in masked form', accountPanel.keyText === 'kb_live_..._key');
+    check('Access panel shows the build marker', accountPanel.buildText === accountPanel.expectedBuild);
     check('Access panel renders a usable local/server status', accountPanel.planText.length > 0);
   }
 

@@ -5,10 +5,11 @@
   "type": "module",
   "description": "KIDBUSTER — ESL teacher parent-feedback generator. Static frontend + a single secure serverless proxy function.",
   "engines": {
-    "node": ">=18"
+    "node": "20.x"
   },
   "scripts": {
-    "test": "node tests/run-all.cjs"
+    "test": "node tests/run-all.cjs",
+    "test:live": "node tests/test-live-smoke.cjs"
   },
   "dependencies": {
     "@vercel/kv": "^2.0.0"
