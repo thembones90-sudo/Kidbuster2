@@ -1004,6 +1004,19 @@ body.protocol-beida .generate-btn.loading{
   pointer-events:none;
   filter:drop-shadow(0 0 4px rgba(212,255,92,0.75));
 }
+.sugarcoat-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.sugarcoat-lollipop{
+  height:17px;
+  width:auto;
+  display:inline-block;
+  object-fit:contain;
+  pointer-events:none;
+  filter:drop-shadow(0 0 4px rgba(255,11,237,0.75));
+}
 
 .lint-box{
   margin-top:14px;
@@ -4408,12 +4421,18 @@ function setProtocolBadge(protocolKey){
   const badge = document.getElementById('protocolBadge');
   const protocol = KidbusterCore.PROTOCOLS[protocolKey] || KidbusterCore.PROTOCOLS.MA;
   if(!badge || !protocol) return;
+  badge.classList.remove('blitz-badge', 'sugarcoat-badge');
+  badge.innerHTML = '';
+  if(protocolKey === 'MS'){
+    badge.classList.add('sugarcoat-badge');
+    badge.innerHTML = '<span>Sugarcoat</span><img src="/assets/sugarcoat-lollipop.png" alt="" class="sugarcoat-lollipop" aria-hidden="true">';
+    return;
+  }
   if(protocolKey === 'BLITZ'){
     badge.classList.add('blitz-badge');
     badge.innerHTML = '<span>BLITZ</span><img src="/assets/blitz-bolt.png" alt="" class="blitz-bolt" aria-hidden="true">';
     return;
   }
-  badge.classList.remove('blitz-badge');
   badge.textContent = protocol.label;
 }
 

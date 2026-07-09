@@ -90,7 +90,7 @@ module.exports = async function run(){
   console.log('\n2) Every protocol correctly sets its own body class AND its own button gradient — not just its :has()-driven panel colors');
   const protocols = [
     { value: 'MA',    bodyClass: null, label: 'Classic' }, // MA is the default theme — no body class of its own
-    { value: 'MS',    bodyClass: 'protocol-ms', label: 'Sugarcoat' },
+    { value: 'MS',    bodyClass: 'protocol-ms', label: 'Sugarcoat', assetSelector: '#protocolBadge .sugarcoat-lollipop', assetName: 'Sugarcoat lollipop' },
     { value: 'BLITZ', bodyClass: 'protocol-blitz', label: 'BLITZ', hasBolt: true },
     { value: 'BEIDA', bodyClass: 'protocol-beida', label: 'Beida' },
     { value: 'OF',    bodyClass: 'protocol-of', label: 'OF Protocol (Trial Evaluation)' }
@@ -101,15 +101,16 @@ module.exports = async function run(){
     await page.click(`input[name="protocol"][value="${proto.value}"]`);
     await new Promise(r => setTimeout(r, 80));
 
-    const result = await page.evaluate(() => {
+    const result = await page.evaluate((assetSelector) => {
       const btn = document.querySelector('.generate-btn');
       return {
         bodyClassList: Array.from(document.body.classList),
         background: getComputedStyle(btn).backgroundImage,
         badgeText: document.getElementById('protocolBadge').textContent,
-        hasBolt: Boolean(document.querySelector('#protocolBadge .blitz-bolt'))
+        hasBolt: Boolean(document.querySelector('#protocolBadge .blitz-bolt')),
+        hasAsset: assetSelector ? Boolean(document.querySelector(assetSelector)) : false
       };
-    });
+    }, proto.assetSelector || '');
 
     if(proto.bodyClass){
       check(proto.value + ': body has "' + proto.bodyClass + '" class', result.bodyClassList.includes(proto.bodyClass));
@@ -119,6 +120,9 @@ module.exports = async function run(){
     check(proto.value + ': header badge text updates to match ("' + proto.label + '")', result.badgeText === proto.label);
     if(proto.hasBolt){
       check(proto.value + ': header badge includes the Blitz bolt image', result.hasBolt);
+    }
+    if(proto.assetSelector){
+      check(proto.value + ': header badge includes the ' + proto.assetName + ' image', result.hasAsset);
     }
     check(proto.value + ": Generate button's own background is a genuinely distinct gradient, not stuck on another theme's", !seenBackgrounds.has(result.background));
     seenBackgrounds.add(result.background);
