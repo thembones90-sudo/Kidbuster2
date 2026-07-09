@@ -128,19 +128,24 @@ module.exports = async function run(){
     seenBackgrounds.add(result.background);
   }
 
-  console.log('\n3) Classic has its own rogue/heist loading copy, while other protocols keep the default copy');
+  console.log('\n3) Classic and Sugarcoat have their own loading copy, while other protocols keep the default copy');
   {
     const statusCopy = await page.evaluate(() => ({
       classic: generationStatusMessagesFor('MA'),
       sugarcoat: generationStatusMessagesFor('MS'),
+      blitz: generationStatusMessagesFor('BLITZ'),
       classicComplete: generationCompleteMessageFor('MA'),
-      sugarcoatComplete: generationCompleteMessageFor('MS')
+      sugarcoatComplete: generationCompleteMessageFor('MS'),
+      blitzComplete: generationCompleteMessageFor('BLITZ')
     }));
     check('Classic loading copy starts with the rogue/heist line', statusCopy.classic[0] === '🥷 Infiltrating the classroom...');
     check('Classic loading copy includes the final fluff-cleanup line', statusCopy.classic.includes('🧹 Erasing unnecessary fluff...'));
     check('Classic success copy uses the mission passed wording', statusCopy.classicComplete === '✔ MISSION PASSED — RESPECT ++');
-    check('Sugarcoat keeps the default loading copy', statusCopy.sugarcoat[0] === '📡 Acquiring classroom intelligence...');
-    check('Sugarcoat keeps the default success copy', statusCopy.sugarcoatComplete === '✔ Protocol complete.');
+    check('Sugarcoat loading copy starts with the confectionery line', statusCopy.sugarcoat[0] === '🍭 Entering Sugarcoat mode...');
+    check('Sugarcoat loading copy includes the final sprinkle line', statusCopy.sugarcoat.includes('🧁 Adding the final sprinkle...'));
+    check('Sugarcoat success copy uses the sweet report wording', statusCopy.sugarcoatComplete === '✔ SWEET REPORT READY — KINDNESS ++');
+    check('Blitz keeps the default loading copy', statusCopy.blitz[0] === '📡 Acquiring classroom intelligence...');
+    check('Blitz keeps the default success copy', statusCopy.blitzComplete === '✔ Protocol complete.');
   }
 
   console.log('\n4) License modal: shows Pro/Free/existing-key paths, validates client-side, stores a pasted key without needing a live backend');
