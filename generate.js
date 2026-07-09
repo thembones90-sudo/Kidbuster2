@@ -1,0 +1,159 @@
+// Kidbuster secure backend proxy.
+//
+// This is the ONLY place the real Anthropic API key ever exists. It lives
+// in a Vercel environment variable, never in git, never in the browser.
+// The frontend (index.html) sends a fully-built systemPrompt + userMessage
+// here; this function attaches the real API key server-side, calls
+// Anthropic, and relays the result back. It has zero knowledge of MA/OF,
+// protocols, or validation — that logic stays entirely in KidbusterCore on
+// the frontend. This function's only job is: authenticate the request,
+// hide the key, proxy the call.
+//
+// Prompt caching: every protocol's buildXSystemPrompt() (see KidbusterCore
+// in index.html) assembles its prompt as
+//   <large, static protocol text> + '\n\n────────────────────────────────────────\n\n' + <small, per-request runtime params>
+// — the same divider MA/Sugarcoat/OF's own internal sections already use,
+// so it can appear multiple times; the LAST occurrence is always the one
+// separating the static bulk from the small per-generation tail (rating-
+// specific tone, length-tier target, etc). Splitting on that lets the
+// large, genuinely-repeated part (thousands of words, identical across
+// every generation for the same teacher+protocol) be marked cacheable,
+// while the small part that actually changes every request stays outside
+// the cache. Blitz doesn't use this divider (its variation — which of 10
+// writing models got picked — is threaded through the middle of its text,
+// not appended as a tail), so for Blitz the whole prompt is cached as one
+// block instead — still a real win whenever the same teacher gets the
+// same model again from the shuffle bag.
+const SYSTEM_PROMPT_DIVIDER = '\n\n────────────────────────────────────────\n\n';
+
+function buildCacheableSystemBlocks(systemPrompt) {
+  const splitIdx = systemPrompt.lastIndexOf(SYSTEM_PROMPT_DIVIDER);
+  if (splitIdx === -1) {
+    // No divider found (e.g. Blitz) — cache the whole thing as one block.
+    return [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }];
+  }
+  const staticPart = systemPrompt.slice(0, splitIdx);
+  const dynamicTail = systemPrompt.slice(splitIdx); // includes the divider itself
+  return [
+    { type: 'text', text: staticPart, cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: dynamicTail }
+  ];
+}
+
+import { checkEntitlement, recordUsage } from './_lib/license-service.js';
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { systemPrompt, userMessage, protocol } = req.body || {};
+  if (!systemPrompt || typeof systemPrompt !== 'string') {
+    return res.status(400).json({ error: 'Missing or invalid systemPrompt' });
+  }
+  if (!userMessage || typeof userMessage !== 'string') {
+    return res.status(400).json({ error: 'Missing or invalid userMessage' });
+  }
+  if (!protocol || typeof protocol !== 'string') {
+    return res.status(400).json({ error: 'Missing or invalid protocol' });
+  }
+
+  // --- per-license entitlement gate ---
+  // This route never talks to Vercel KV or any payment provider directly
+  // — it only ever calls license-service.js (see api/_lib/license-service.js),
+  // the middle layer between any payment provider and this app:
+  //
+  //   Payment Provider  →  License Service  →  Kidbuster
+  //
+  // Every teacher now has their own personal license key (Free or Pro),
+  // issued via api/license-signup.js or upgraded to Pro via a payment
+  // provider's checkout — sent in the same x-app-key header the old
+  // single shared-team password used to occupy, so this is a swap of
+  // what that header MEANS, not a new mechanism.
+  const licenseKey = req.headers['x-app-key'];
+  if (!licenseKey) {
+    return res.status(401).json({ error: 'A license key is required.', reason: 'missing_key' });
+  }
+
+  let entitlement;
+  try {
+    entitlement = await checkEntitlement(licenseKey, protocol);
+  } catch (err) {
+    console.error('generate.js: error checking entitlement:', err);
+    return res.status(500).json({ error: 'Could not verify your license right now. Please try again shortly.' });
+  }
+  if (!entitlement.allowed) {
+    const status = entitlement.reason === 'invalid_key' ? 401 : 402;
+    return res.status(status).json({ error: entitlement.message, reason: entitlement.reason });
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    console.error('ANTHROPIC_API_KEY is not set in the environment');
+    return res.status(500).json({ error: 'Server is not configured correctly (missing API key)' });
+  }
+
+  let anthropicResponse;
+  try {
+    anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        // Beida's combined dual-field output (Learning Content up to 2000
+        // chars + General/Detailed Performance up to 4000 chars, plus
+        // header markers) can reach ~1500 tokens at the platform's own
+        // stated maximums — right at the edge of truncation with no
+        // margin. Every other protocol's realistic maximum sits well
+        // under this; raised here for all of them uniformly since a
+        // higher ceiling costs nothing extra (Anthropic bills actual
+        // output tokens generated, not the max allowed) and there's no
+        // reason to run any protocol this close to a cutoff.
+        max_tokens: 3000,
+        system: buildCacheableSystemBlocks(systemPrompt),
+        messages: [{ role: 'user', content: userMessage }]
+      })
+    });
+  } catch (networkErr) {
+    return res.status(502).json({ error: 'Network error contacting Anthropic' });
+  }
+
+  if (!anthropicResponse.ok) {
+    let detail = '';
+    try {
+      const errBody = await anthropicResponse.json();
+      detail = (errBody && errBody.error && errBody.error.message) || '';
+    } catch (e) { /* body wasn't JSON, ignore */ }
+    return res.status(anthropicResponse.status).json({
+      error: detail || ('Anthropic API request failed with status ' + anthropicResponse.status)
+    });
+  }
+
+  const data = await anthropicResponse.json();
+  const text = (data.content || []).map(b => b.text || '').join('').trim();
+
+  if (!text) {
+    return res.status(502).json({ error: 'Anthropic returned an empty response' });
+  }
+
+  // Only count a generation against the license's monthly usage once
+  // Anthropic has actually returned real content — a failed or empty
+  // response was never a delivered report and shouldn't cost the teacher
+  // part of their Free allowance.
+  try {
+    await recordUsage(licenseKey);
+  } catch (err) {
+    console.error('generate.js: error recording usage (report still delivered):', err);
+  }
+
+  // data.usage now includes cache_creation_input_tokens / cache_read_input_tokens
+  // whenever caching was actually used — forwarded through as-is so the
+  // frontend's cost tracker (see kidbusterStats() in index.html) can price
+  // each token type correctly instead of treating everything as a normal
+  // input token.
+  return res.status(200).json({ text, usage: data.usage || null });
+}
