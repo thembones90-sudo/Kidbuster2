@@ -2056,6 +2056,7 @@ Before returning the report, verify:
   function defaultTeacherSignatureEmoji(teacherName, protocolKey){
     const name = (teacherName || '').trim().toLowerCase();
     if(name === 'faye') return '🧚';
+    if(name === 'sissy') return '🌻';
     if((!name || name === 'layne') && protocolKey === 'MA') return '🐺';
     return '';
   }
@@ -2069,8 +2070,9 @@ Before returning the report, verify:
    * an emoji unconditionally there would double up next to it. This is
    * only ever called for MA specifically (see generate()).
    *
-   * Default behavior (customEmoji left blank): Layne gets 🐺, Faye gets
-   * 🧚, and any other teacher gets no emoji at all. If customEmoji is
+   * Default behavior (customEmoji left blank): Layne gets 🐺 (MA only),
+   * Faye gets 🧚, Sissy gets 🌻 (both MA and Sugarcoat for Faye/Sissy),
+   * and any other teacher gets no emoji at all. If customEmoji is
    * provided, ANY teacher can opt into their own sign-off emoji instead.
    * @param {string} promptText - MA's prompt, already name-substituted
    * @param {string} teacherName
@@ -2200,6 +2202,10 @@ Before returning the report, verify:
       // explicit pronoun instead of guessing one from the student's name.
       const teacherName = (params.teacherName || '').trim() || 'Layne';
       msg += `Teacher: ${teacherName} — use exactly this name in the required greeting; never invent or guess a different one.\n`;
+      const hiddenBeidaEmoji = defaultTeacherSignatureEmoji(teacherName, 'BEIDA');
+      if(hiddenBeidaEmoji){
+        msg += `Immediately after the teacher's name in the greeting, include exactly this emoji: ${hiddenBeidaEmoji} (e.g. "teacher ${teacherName} ${hiddenBeidaEmoji} here!").\n`;
+      }
     }
     if(isOF){
       // OF is the only protocol written entirely in the third person about
@@ -3027,9 +3033,13 @@ VALIDATION CHECKLIST
     if(learningContent.length < 200 || learningContent.length > 2000){
       warnings.push('Learning Content is ' + learningContent.length + ' characters — must be between 200 and 2000 (the platform\'s own hard limits).');
     }
-    const greetingRegex = new RegExp('^Hi [^,]+,\\s*teacher ' + escapedName + ' here!', 'i');
+    const hiddenBeidaEmoji = defaultTeacherSignatureEmoji(name, 'BEIDA');
+    const escapedHiddenEmoji = hiddenBeidaEmoji.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const greetingRegex = hiddenBeidaEmoji
+      ? new RegExp('^Hi [^,]+,\\s*teacher ' + escapedName + ' ' + escapedHiddenEmoji + ' here!', 'i')
+      : new RegExp('^Hi [^,]+,\\s*teacher ' + escapedName + ' here!', 'i');
     if(!greetingRegex.test(learningContent)){
-      warnings.push('Learning Content does not open with "Hi [Student], teacher ' + name + ' here!" as required.');
+      warnings.push('Learning Content does not open with "Hi [Student], teacher ' + name + (hiddenBeidaEmoji ? ' ' + hiddenBeidaEmoji : '') + ' here!" as required.');
     }
 
     // --- General and Detailed Performance ---
