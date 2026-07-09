@@ -178,6 +178,30 @@ module.exports = function run(){
     check('prompt explicitly says never invent/guess a name for either the student or teacher', prompt.includes('Never invent, guess, or default to any other name for either'));
   }
 
+  console.log('\n12) Sissy (and Faye) get their hidden default sign-off emoji on Beida too, via the same Teacher Fact mechanism');
+  {
+    const msgSissy = KidbusterCore.buildUserMessage({ studentName: 'Momo', teacherName: 'Sissy', notes: 'x', rating: 'excellent', protocol: 'BEIDA' });
+    check('Sissy\'s user message instructs the model to include 🌻 right after her name', msgSissy.includes('include exactly this emoji: 🌻') && msgSissy.includes('teacher Sissy 🌻 here!'));
+
+    const msgFaye = KidbusterCore.buildUserMessage({ studentName: 'Momo', teacherName: 'Faye', notes: 'x', rating: 'excellent', protocol: 'BEIDA' });
+    check('Faye gets the same treatment, with her own 🧚', msgFaye.includes('include exactly this emoji: 🧚'));
+
+    const msgNina = KidbusterCore.buildUserMessage({ studentName: 'Momo', teacherName: 'Nina', notes: 'x', rating: 'excellent', protocol: 'BEIDA' });
+    check('a teacher with no hidden default (e.g. Nina) gets no such extra instruction line', !msgNina.includes('include exactly this emoji'));
+
+    function makeReport(learningContent, performance){
+      return `LEARNING CONTENT:\n${learningContent}\n\nGENERAL AND DETAILED PERFORMANCE:\n${performance}`;
+    }
+    const sissyWithSunflower = makeReport('Hi Momo, teacher Sissy 🌻 here! ' + 'x'.repeat(200), 'y'.repeat(250));
+    check('validator: Sissy WITH 🌻 in the greeting -> not flagged', !KidbusterCore.analyzeBeidaOutput(sissyWithSunflower, 'excellent', 'Sissy').some(w => w.includes('does not open')));
+
+    const sissyMissingSunflower = makeReport('Hi Momo, teacher Sissy here! ' + 'x'.repeat(200), 'y'.repeat(250));
+    check('validator: Sissy WITHOUT 🌻 in the greeting -> flagged', KidbusterCore.analyzeBeidaOutput(sissyMissingSunflower, 'excellent', 'Sissy').some(w => w.includes('does not open')));
+
+    const ninaNoEmojiNeeded = makeReport('Hi Momo, teacher Nina here! ' + 'x'.repeat(200), 'y'.repeat(250));
+    check('validator: a teacher with no hidden default (Nina) is NOT required to have any emoji', !KidbusterCore.analyzeBeidaOutput(ninaNoEmojiNeeded, 'excellent', 'Nina').some(w => w.includes('does not open')));
+  }
+
   return getFailures();
 };
 

@@ -36,6 +36,9 @@ module.exports = function run(){
     const promptFaye = KidbusterCore.applyTeacherIdentity(KidbusterCore.buildMASystemPrompt({ rating: '4', lengthFormat: 'long' }), 'Faye');
     const finalFaye = KidbusterCore.applyMASignoffEmoji(promptFaye, 'Faye');
     check('Faye, no custom emoji -> gets 🧚 by hidden default', finalFaye.includes('Teacher Faye 🧚') && !finalFaye.includes('ðŸº'));
+    const promptSissy = KidbusterCore.applyTeacherIdentity(KidbusterCore.buildMASystemPrompt({ rating: '4', lengthFormat: 'long' }), 'Sissy');
+    const finalSissy = KidbusterCore.applyMASignoffEmoji(promptSissy, 'Sissy');
+    check('Sissy, no custom emoji -> gets 🌻 by hidden default', finalSissy.includes('Teacher Sissy 🌻'));
   }
 
   console.log('\n3) applyMASignoffEmoji: any teacher can opt into their own custom sign-off emoji');
@@ -132,6 +135,17 @@ module.exports = function run(){
     const msReportFaye = makeMSReport('Teacher Faye 🧚 💖');
     const warnMSFaye = KidbusterCore.PROTOCOLS.MS.analyze(msReportFaye, '4', 'Faye', 'long', '', '');
     check('MS + Faye + "Teacher Faye 🧚 💖" -> sign-off NOT flagged', !warnMSFaye.some(w => w.includes('sign-off')));
+
+    const msPromptSissy = KidbusterCore.applyProtocolSignoffEmoji(
+      KidbusterCore.applyTeacherIdentity(KidbusterCore.buildSweetSystemPrompt({ rating: '4', lengthFormat: 'long' }), 'Sissy'),
+      'Sissy',
+      'MS'
+    );
+    check('MS prompt for Sissy includes "Teacher Sissy 🌻 💖"', msPromptSissy.includes('Teacher Sissy 🌻 💖'));
+
+    const msReportSissy = makeMSReport('Teacher Sissy 🌻 💖');
+    const warnMSSissy = KidbusterCore.PROTOCOLS.MS.analyze(msReportSissy, '4', 'Sissy', 'long', '', '');
+    check('MS + Sissy + "Teacher Sissy 🌻 💖" -> sign-off NOT flagged', !warnMSSissy.some(w => w.includes('sign-off')));
   }
 
   return getFailures();

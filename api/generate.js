@@ -104,7 +104,16 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
+        // Beida's combined dual-field output (Learning Content up to 2000
+        // chars + General/Detailed Performance up to 4000 chars, plus
+        // header markers) can reach ~1500 tokens at the platform's own
+        // stated maximums — right at the edge of truncation with no
+        // margin. Every other protocol's realistic maximum sits well
+        // under this; raised here for all of them uniformly since a
+        // higher ceiling costs nothing extra (Anthropic bills actual
+        // output tokens generated, not the max allowed) and there's no
+        // reason to run any protocol this close to a cutoff.
+        max_tokens: 3000,
         system: buildCacheableSystemBlocks(systemPrompt),
         messages: [{ role: 'user', content: userMessage }]
       })
