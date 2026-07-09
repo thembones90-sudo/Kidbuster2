@@ -386,6 +386,11 @@ label.field-label{
   gap:6px;
   cursor:pointer;
 }
+.protocol-lightning{
+  color:#fff700;
+  text-shadow:0 0 8px rgba(255,247,0,0.85);
+  line-height:1;
+}
 /* OF's label is much longer than the other three ("OF Protocol (Trial
    Evaluation)" vs one word each) — forcing it to occupy the full row
    width pushes it onto its own line in the wrapping flex layout,
@@ -1197,7 +1202,7 @@ body.protocol-beida .generate-btn.loading{
           <div class="protocol-select" id="protocolSelect">
             <label><input type="radio" name="protocol" value="MA" checked> Classic<span class="info-icon" tabindex="0" data-tooltip="Full detailed report — vocabulary, grammar, homework. The standard format.">?</span></label>
             <label><input type="radio" name="protocol" value="MS"> Sugarcoat<span class="info-icon" tabindex="0" data-tooltip="Same report as Classic, written in a warmer, parent-friendly voice.">?</span></label>
-            <label><input type="radio" name="protocol" value="BLITZ"> Blitz ⚡<span class="info-icon" tabindex="0" data-tooltip="Short, neutral comment for quick platform feedback. No rating-based tone shifts.">?</span></label>
+            <label><input type="radio" name="protocol" value="BLITZ"> Blitz <span class="protocol-lightning" aria-hidden="true">&#9889;</span><span class="info-icon" tabindex="0" data-tooltip="Short, neutral comment for quick platform feedback. No rating-based tone shifts.">?</span></label>
             <label><input type="radio" name="protocol" value="BEIDA"> Beida<span class="info-icon" tabindex="0" data-tooltip="Two-field comment matching the BetaKid platform's own form: Learning Content + General Performance.">?</span></label>
             <label><input type="radio" name="protocol" value="OF"> OF Protocol (Trial Evaluation)<span class="info-icon" tabindex="0" data-tooltip="3-section narrative for trial-lesson evaluations — not a regular lesson report.">?</span></label>
           </div>
@@ -3068,7 +3073,7 @@ VALIDATION CHECKLIST
     },
     BLITZ: {
       key: 'BLITZ',
-      label: 'Blitz ⚡',
+      label: 'Blitz \u26A1',
       buildSystemPrompt: buildBlitzSystemPrompt,
       analyze: (text) => analyzeBlitzOutput(text),
       models: BLITZ_MODEL_POOL
