@@ -53,6 +53,13 @@ module.exports = function run(){
     );
     check('prompt contains "Cheers, / Teacher Nina"', prompt.includes('Cheers,\nTeacher Nina'));
     check('prompt no longer contains "Prepared by"', !prompt.includes('Prepared by'));
+
+    const fayePrompt = KidbusterCore.applyProtocolSignoffEmoji(
+      KidbusterCore.applyTeacherIdentity(KidbusterCore.buildOFSystemPrompt({ rating: 'Medium' }), 'Faye'),
+      'Faye',
+      'OF'
+    );
+    check('OF prompt for Faye contains "Cheers, / Teacher Faye 🧚"', fayePrompt.includes('Cheers,\nTeacher Faye 🧚'));
   }
 
   console.log('\n2) All 3 required sections must be present');
@@ -139,6 +146,14 @@ module.exports = function run(){
     const otherTeacher = baseReport({ signoff: 'Cheers,\nTeacher Nina' });
     const correctOtherTeacher = KidbusterCore.analyzeOFOutput(otherTeacher, 'Medium', 'Nina');
     check('correct "Cheers" sign-off uses the selected teacher name', !correctOtherTeacher.some(w => w.includes('sign-off')));
+
+    const fayeTeacher = baseReport({ signoff: 'Cheers,\nTeacher Faye 🧚' });
+    const correctFayeTeacher = KidbusterCore.analyzeOFOutput(fayeTeacher, 'Medium', 'Faye');
+    check('Faye OF sign-off requires hidden 🧚 and passes when present', !correctFayeTeacher.some(w => w.includes('sign-off')));
+
+    const fayeMissingFairy = baseReport({ signoff: 'Cheers,\nTeacher Faye' });
+    const warnFayeMissingFairy = KidbusterCore.analyzeOFOutput(fayeMissingFairy, 'Medium', 'Faye');
+    check('Faye OF sign-off missing 🧚 -> flagged', warnFayeMissingFairy.some(w => w.includes('sign-off')));
   }
 
   console.log('\n8) Forbidden formatting: no bold, no italics (shared across every protocol)');

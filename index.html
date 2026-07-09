@@ -2018,11 +2018,8 @@ Before returning the report, verify:
    * know anything about prompt structure; it only ever proxies whatever
    * text it's given.
    *
-   * Deliberately does nothing else — no emoji logic here at all. It's
-   * applied blanket to every protocol's prompt text, and Sugarcoat's own
-   * sign-off has a fixed, protocol-level 💖 that this must never touch.
-   * MA's sign-off emoji is a separate concern — see applyMASignoffEmoji,
-   * called only for MA specifically.
+   * Deliberately does nothing else — hidden teacher signature emoji logic
+   * is handled after name substitution, once the protocol is known.
    * @param {string} promptText - a fully-built system prompt (any protocol)
    * @param {string} teacherName - defaults to 'Layne' if empty/omitted
    * @returns {string}
@@ -2031,6 +2028,13 @@ Before returning the report, verify:
     const name = (teacherName || '').trim();
     if(!name || name.toLowerCase() === 'layne') return promptText; // no-op, preserves exact existing behavior
     return promptText.split('Layne').join(name);
+  }
+
+  function defaultTeacherSignatureEmoji(teacherName, protocolKey){
+    const name = (teacherName || '').trim().toLowerCase();
+    if(name === 'faye') return '🧚';
+    if((!name || name === 'layne') && protocolKey === 'MA') return '🐺';
+    return '';
   }
 
   /**
@@ -2042,12 +2046,9 @@ Before returning the report, verify:
    * an emoji unconditionally there would double up next to it. This is
    * only ever called for MA specifically (see generate()).
    *
-   * Default behavior (customEmoji left blank) is unchanged from before:
-   * Layne gets 🐺, any other teacher gets no emoji at all. If customEmoji
-   * is provided, ANY teacher — including Layne — can opt into their own
-   * sign-off emoji instead, which is exactly what this exists for: the
-   * wolf was never meant to be Layne-exclusive by design, just the
-   * default nobody had reason to change until asked.
+   * Default behavior (customEmoji left blank): Layne gets 🐺, Faye gets
+   * 🧚, and any other teacher gets no emoji at all. If customEmoji is
+   * provided, ANY teacher can opt into their own sign-off emoji instead.
    * @param {string} promptText - MA's prompt, already name-substituted
    * @param {string} teacherName
    * @param {string} [customEmoji] - explicit override; blank means "use the default"
@@ -2062,15 +2063,28 @@ Before returning the report, verify:
     // template) so the correct final emoji — default or custom — can be
     // (re)inserted in exactly one place, rather than trying to patch the
     // existing one in place.
-    let result = promptText.split(' 🐺').join('').split('🐺').join('');
+    let result = promptText.split(' 🐺').join('').split('🐺').join('').split(' 🧚').join('').split('🧚').join('');
 
     const trimmedCustomEmoji = (customEmoji || '').trim();
-    const finalEmoji = trimmedCustomEmoji || (isLayne ? '🐺' : '');
+    const finalEmoji = trimmedCustomEmoji || defaultTeacherSignatureEmoji(effectiveName, 'MA');
 
     if(finalEmoji){
       result = result.split('Teacher ' + effectiveName).join('Teacher ' + effectiveName + ' ' + finalEmoji);
     }
     return result;
+  }
+
+  function applyProtocolSignoffEmoji(promptText, teacherName, protocolKey){
+    const name = (teacherName || '').trim() || 'Layne';
+    const finalEmoji = defaultTeacherSignatureEmoji(name, protocolKey);
+    if(!finalEmoji) return promptText;
+    if(protocolKey === 'MS'){
+      return promptText.split('Teacher ' + name + ' 💖').join('Teacher ' + name + ' ' + finalEmoji + ' 💖');
+    }
+    if(protocolKey === 'OF'){
+      return promptText.split('Teacher ' + name).join('Teacher ' + name + ' ' + finalEmoji);
+    }
+    return promptText;
   }
 
   function cleanTranscript(rawText){
@@ -2241,11 +2255,11 @@ Before returning the report, verify:
     const name = (teacherName || 'Layne').trim();
     const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const phrase = signoffPhrase || 'Cheers,';
-    // undefined means "use the protocol default" (🐺 for MA); an explicit
+    // undefined means "use the MA protocol default" (🐺 for Layne); an explicit
     // '' means "no emoji is expected at all" — used for MA when the
-    // teacher isn't Layne, since the wolf is her personal signature, not
+    // teacher has no hidden signature, since the wolf is Layne's personal signature, not
     // a generic decoration every teacher gets.
-    const emoji = signoffEmoji === undefined ? '🐺' : signoffEmoji;
+    const emoji = signoffEmoji === undefined ? defaultTeacherSignatureEmoji(name, 'MA') : signoffEmoji;
     const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const warnings = [];
     const tier = lengthTier || LENGTH_TIERS.long;
@@ -2551,8 +2565,11 @@ Before returning the report, verify:
     }
 
     // --- exact closing ---
-    if(!new RegExp('Cheers,\\s*\\n?\\s*Teacher ' + escapedName + '\\s*$', 'i').test(text.trim())){
-      warnings.push('Closing sign-off does not exactly match "Cheers, / Teacher ' + name + '".');
+    const emoji = defaultTeacherSignatureEmoji(name, 'OF');
+    const escapedEmoji = emoji.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const emojiPart = emoji ? '\\s*' + escapedEmoji : '';
+    if(!new RegExp('Cheers,\\s*\\n?\\s*Teacher ' + escapedName + emojiPart + '\\s*$', 'i').test(text.trim())){
+      warnings.push('Closing sign-off does not exactly match "Cheers, / Teacher ' + name + (emoji ? ' ' + emoji : '') + '".');
     }
 
     return warnings;
@@ -3028,9 +3045,8 @@ VALIDATION CHECKLIST
       // means "use the default" — see analyzeMAOutput's own comment on
       // that distinction.
       analyze: (text, lvl, teacherName, lengthFormat, studentGender, signoffEmoji) => {
-        const isLayne = !teacherName || teacherName.trim().toLowerCase() === 'layne';
         const trimmedCustomEmoji = (signoffEmoji || '').trim();
-        const expectedEmoji = trimmedCustomEmoji || (isLayne ? undefined : '');
+        const expectedEmoji = trimmedCustomEmoji || defaultTeacherSignatureEmoji(teacherName || 'Layne', 'MA');
         return analyzeMAOutput(text, lvl, teacherName, undefined, expectedEmoji, LENGTH_TIERS[lengthFormat] || LENGTH_TIERS.long);
       }
     },
@@ -3040,8 +3056,10 @@ VALIDATION CHECKLIST
       buildSystemPrompt: buildSweetSystemPrompt,
       // Every check is the exact same shared function as MA's — only the
       // expected sign-off phrase/emoji differ, passed as extra arguments.
-      analyze: (text, lvl, teacherName, lengthFormat) =>
-        analyzeMAOutput(text, lvl, teacherName, 'Love,', '💖', LENGTH_TIERS[lengthFormat] || LENGTH_TIERS.long)
+      analyze: (text, lvl, teacherName, lengthFormat) => {
+        const hiddenEmoji = defaultTeacherSignatureEmoji(teacherName || 'Layne', 'MS');
+        return analyzeMAOutput(text, lvl, teacherName, 'Love,', hiddenEmoji ? hiddenEmoji + ' 💖' : '💖', LENGTH_TIERS[lengthFormat] || LENGTH_TIERS.long);
+      }
     },
     BLITZ: {
       key: 'BLITZ',
@@ -3130,6 +3148,8 @@ VALIDATION CHECKLIST
     buildUserMessage,
     applyTeacherIdentity,
     applyMASignoffEmoji,
+    applyProtocolSignoffEmoji,
+    defaultTeacherSignatureEmoji,
     analyzeMAOutput,
     analyzeOFOutput,
     analyzeBlitzOutput,
@@ -4055,6 +4075,8 @@ async function generate(){
   );
   if(form.protocol === 'MA'){
     systemPrompt = KidbusterCore.applyMASignoffEmoji(systemPrompt, form.teacherName, form.signoffEmoji);
+  }else{
+    systemPrompt = KidbusterCore.applyProtocolSignoffEmoji(systemPrompt, form.teacherName, form.protocol);
   }
   const userMessage = KidbusterCore.buildUserMessage({ ...form, notes: cleanedNotes });
 
